@@ -58,7 +58,7 @@ else:
     group_key = st.session_state.current_page
     df = st.session_state.df
     
-    # 【核心修正】：傳入參數 2，明確指定切分為 2 欄
+    # 頂部導航控制列
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
@@ -74,7 +74,7 @@ else:
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
 
     # 將所有行打包進同一個 HTML 容器中，精準控制每一行的 margin
-    html_content = "<div style='line-height: 1.5; font-family: sans-serif;'>"
+    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 16px;'>"
     
     for _, row in sub_df.iterrows():
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
@@ -84,12 +84,13 @@ else:
         pos_val = int(row["POSITION"]) if ("POSITION" in row and pd.notna(row["POSITION"])) else 50
         skip_val = int(row["SKIP LINE"]) if ("SKIP LINE" in row and pd.notna(row["SKIP LINE"])) else 1
         
-        # 根據 Excel 規則計算下方空行距離：
-        # skip_val = 1 代表不空行，下方距離設為 2px (緊密貼合)
-        # skip_val = 2 代表空 1 行，下方距離設為 22px (拉開一行文字的距離)
-        bottom_margin = 2 if skip_val <= 1 else (skip_val - 1) * 22
+        # 【核心公式修正】：
+        # skip_val = 1 代表緊接下一行顯示（行與行之間 0 空行），下方距離設為 0px
+        # skip_val = 2 代表跳到下 2 行顯示（行與行之間 1 空行），下方距離設為 24px (剛好一行文字的高度)
+        # 依此類推，公式為：(skip_val - 1) * 24 
+        bottom_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
         
-        # 行內樣式：強制消除網頁預設邊距，改用精準計算的 padding/margin
+        # 行內樣式：徹底消除瀏覽器預設邊距，改用精準計算的 padding/margin
         line_style = f"margin-left: {pos_val}px; margin-top: 0px; margin-bottom: {bottom_margin}px; padding: 0px; display: block;"
 
         if is_hyperlink:
@@ -101,7 +102,7 @@ else:
             
     html_content += "</div>"
 
-    # 一次性渲染整頁，確保瀏覽器不產生多餘段落間距
+    # 一次性渲染整頁，確保瀏覽器完全遵守自訂的 HTML 間距
     st.markdown(html_content, unsafe_allow_html=True)
 
 
