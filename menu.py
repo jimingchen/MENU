@@ -22,13 +22,15 @@ def read_reference_title():
 # 2. 初始化 Excel 資料
 if 'df' not in st.session_state:
     try:
-        st.session_state.df = pd.read_excel("data.xlsx")
-        st.session_state.df.columns = st.session_state.df.columns.str.strip()
+        df_read = pd.read_excel("data.xlsx")
+        # 強制將所有欄位名稱去除前後空白，並統一轉換為大寫
+        df_read.columns = df_read.columns.str.strip().str.upper()
+        st.session_state.df = df_read
     except Exception as e:
         st.error(f"無法讀取 data.xlsx 檔案，請確認是否與 menu.py 置於同目錄下。錯誤原因: {e}")
         st.stop()
 
-# 3. 初始化頁面路由狀態 (Main 代表主選單，其他代表子選單的 GROUP 名稱)
+# 3. 初始化頁面路由狀態
 if 'current_page' not in st.session_state:
     st.session_state.current_page = 'Main'
 
@@ -40,27 +42,24 @@ if st.session_state.current_page == 'Main':
     st.markdown(f"<h3 style='text-align: center; color: #333;'>{welcome_title}</h3>", unsafe_allow_html=True)
     st.write("---")
 
-    # 篩選主選單項目
     df = st.session_state.df
     menu_df = df[df["GROUP"].astype(str).str.strip() == "MENU"]
 
-    # 依序繪製主選單按鈕
     for _, row in menu_df.iterrows():
-        key = str(row["KEY"]).strip()
-        desc = str(row["Option Description"]).strip()
+        key = str(row["KEY"]).strip() if "KEY" in row else ""
+        desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
         
-        # 利用 Streamlit 按鈕切換頁面狀態
         if st.button(f"按鈕 {key} : {desc}", use_container_width=True):
             st.session_state.current_page = key
             st.rerun()
 
-# (C) 子選單畫面 (例如：點選 B 進入玩股網選股)
+# (C) 子選單畫面 (處理精準換行與縮排)
 else:
     group_key = st.session_state.current_page
     df = st.session_state.df
     
     # 頂部導航控制列
-    col1, col2 = st.columns([8, 2])
+    col1, col2 = st.columns()
     with col1:
         if st.button("⬅️ 返回主選單"):
             st.session_state.current_page = 'Main'
@@ -74,22 +73,35 @@ else:
     # 篩選對應 GROUP 的資料
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
 
+    # 【核心修正】：將所有行打包進同一個 HTML 容器中，精準控制每一行的 margin
+    html_content = "<div style='line-height: 1.5; font-family: sans-serif;'>"
+    
     for _, row in sub_df.iterrows():
-        desc = str(row["Option Description"]).strip()
-        is_hyperlink = str(row["hyperlink"]).strip().upper() == "Y"
+        desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
+        is_hyperlink = str(row["HYPERLINK"]).strip().upper() == "Y" if "HYPERLINK" in row else False
         
-        # 排版對齊參數 (轉換為網頁適用的縮排間距)
-        pos_val = int(row["position"]) if pd.notna(row["position"]) else 50
-        skip_val = int(row["SKIP LINE"]) if pd.notna(row["SKIP LINE"]) else 1
+        # 讀取 position 與 SKIP LINE
+        pos_val = int(row["POSITION"]) if ("POSITION" in row and pd.notna(row["POSITION"])) else 50
+        skip_val = int(row["SKIP LINE"]) if ("SKIP LINE" in row and pd.notna(row["SKIP LINE"])) else 1
         
-        # 轉換成 HTML 網頁樣式
-        margin_style = f"margin-left: {pos_val}px; margin-bottom: {skip_val * 8}px;"
+        # 根據 Excel 規則計算下方空行距離：
+        # skip_val = 1 代表不空行，下方距離設為 2px (緊密貼合)
+        # skip_val = 2 代表空 1 行，下方距離設為 22px (拉開一行文字的距離)
+        bottom_margin = 2 if skip_val <= 1 else (skip_val - 1) * 22
+        
+        # 行內樣式：強制消除網頁預設邊距，改用精準計算的 padding/margin
+        line_style = f"margin-left: {pos_val}px; margin-top: 0px; margin-bottom: {bottom_margin}px; padding: 0px; display: block;"
 
         if is_hyperlink:
-            # 如果是超連結，渲染為網頁可點擊的藍色連結
-            st.markdown(f"<div style='{margin_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></div>", unsafe_allow_html=True)
+            # 超連結行
+            html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
-            # 一般文字說明
-            st.markdown(f"<div style='{margin_style}; color: #333;'>{desc}</div>", unsafe_allow_html=True)
+            # 一般文字行
+            html_content += f"<span style='{line_style}; color: #333;'>{desc}</span>"
+            
+    html_content += "</div>"
+
+    # 一次性渲染整頁，確保瀏覽器不產生多餘段落間距
+    st.markdown(html_content, unsafe_allow_html=True)
 
 
