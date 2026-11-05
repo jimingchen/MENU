@@ -1,5 +1,5 @@
 import os
-import streamlit as st 
+import streamlit as st
 import pandas as pd
 
 # 1. 讀取標題與設定頁面
@@ -76,6 +76,7 @@ else:
     # 將所有行打包進同一個 HTML 容器中，精準控制每一行的 margin
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 16px;'>"
     
+    is_first_line = True
     for _, row in sub_df.iterrows():
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
         is_hyperlink = str(row["HYPERLINK"]).strip().upper() == "Y" if "HYPERLINK" in row else False
@@ -84,14 +85,18 @@ else:
         pos_val = int(row["POSITION"]) if ("POSITION" in row and pd.notna(row["POSITION"])) else 50
         skip_val = int(row["SKIP LINE"]) if ("SKIP LINE" in row and pd.notna(row["SKIP LINE"])) else 1
         
-        # 【核心公式修正】：
-        # skip_val = 1 代表緊接下一行顯示（行與行之間 0 空行），下方距離設為 0px
-        # skip_val = 2 代表跳到下 2 行顯示（行與行之間 1 空行），下方距離設為 24px (剛好一行文字的高度)
-        # 依此類推，公式為：(skip_val - 1) * 24 
-        bottom_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
+        # 【核心公式修正】：改為控制上方間距（margin-top）
+        # skip_val = 1 代表跳到下 1 行（不空行），上方距離設為 0px
+        # skip_val = 2 代表跳到下 2 行（空 1 行），上方距離設為 24px（一行字高度）
+        # 如果是子選單的第一行，則不強制空行，維持原本網頁頂部自然間距
+        if is_first_line:
+            top_margin = 0
+            is_first_line = False
+        else:
+            top_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
         
-        # 行內樣式：徹底消除瀏覽器預設邊距，改用精準計算的 padding/margin
-        line_style = f"margin-left: {pos_val}px; margin-top: 0px; margin-bottom: {bottom_margin}px; padding: 0px; display: block;"
+        # 行內樣式：徹底消除瀏覽器預設邊距，改用精準計算的上方間距與縮排
+        line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; margin-bottom: 0px; padding: 0px; display: block;"
 
         if is_hyperlink:
             # 超連結行
@@ -102,7 +107,7 @@ else:
             
     html_content += "</div>"
 
-    # 一次性渲染整頁，確保瀏覽器完全遵守自訂的 HTML 間距
+    # 一次性渲染整頁
     st.markdown(html_content, unsafe_allow_html=True)
 
 
