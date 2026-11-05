@@ -49,7 +49,7 @@ if st.session_state.current_page == 'Main':
         key = str(row["KEY"]).strip() if "KEY" in row else ""
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
         
-        if st.button(f"按鈕 {key} : {desc}", use_container_width=True):
+        if st.button(f" {key} : {desc}", use_container_width=True):
             st.session_state.current_page = key
             st.rerun()
 
