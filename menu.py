@@ -42,17 +42,13 @@ def generate_html_line(text, font_size, position, skip_line, url=None):
         content = f"<span>{text}</span>"
     else:
         clean_text = text.replace(str(url), "").strip()
-        content = f'<span style="color: #000;">{clean_text}</span> &nbsp;&nbsp; <a href="{url}" 
-        target="_blank" style="color: #1a0dab; text-decoration: underline; 
-             font-weight: bold;">{url}</a>'
+        content = f'<span style="color: #000;">{clean_text}</span> &nbsp;&nbsp; <a href="{url}" target="_blank" style="color: #1a0dab; text-decoration: underline; font-weight: bold;">{url}</a>'
 
     bottom_gap = "0.10em" if skip_line >= 2 else "0.05em"
     line_hgt = "1.0" if skip_line >= 2 else "0.4"
 
     html = f"""
-    <div style="font-size: {font_size}px; margin-left: {margin_left}px; 
-         margin-bottom: {bottom_gap}; 
-         line-height:{line_hgt}; font-family: sans-serif; white-space: pre-wrap;">
+    <div style="font-size: {font_size}px; margin-left: {margin_left}px; margin-bottom: {bottom_gap}; line-height:{line_hgt}; font-family: sans-serif; white-space: pre-wrap;">
         {content}
     </div>
     """
@@ -65,8 +61,7 @@ if "current_page" not in st.session_state:
 # --- 畫面渲染開始 ---
 
 # 顯示置中大標題
-st.markdown(f'<div style="font-size: 28px; font-weight: bold; text-align: center; 
-   margin-bottom: 30px; font-family: sans-serif;">{menu_title}</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="font-size: 28px; font-weight: bold; text-align: center; margin-bottom: 30px; font-family: sans-serif;">{menu_title}</div>', unsafe_allow_html=True)
 
 # 狀態一：顯示主選單
 if st.session_state.current_page == "MAIN":
@@ -121,4 +116,5 @@ else:
 
     # 將精確排版的 HTML 渲染到網頁上
     st.markdown(html_content, unsafe_allow_html=True)
+
 
