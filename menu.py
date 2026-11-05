@@ -1,120 +1,180 @@
 import os
+import sys
+import webbrowser
+import tkinter as tk
+from tkinter import font
 import pandas as pd
-import streamlit as st
 
-# 調整網頁版面配置為寬版
-st.set_page_config(layout="wide")
+def read_reference_title():
+    """讀取 reference.txt 中的 MENU_TITLE"""
+    title = "歡迎光臨股票選單系統"  # 預設標題
+    if os.path.exists("reference.txt"):
+        try:
+            with open("reference.txt", "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.startswith("MENU_TITLE:"):
+                        title = line.replace("MENU_TITLE:", "").strip()
+                        break
+        except Exception as e:
+            print(f"讀取 reference.txt 失敗: {e}")
+    return title
 
-# 1. 設定檔案路徑（使用 Streamlit 相對路徑）
-EXCEL_PATH = "data.xlsx"       
-TXT_PATH = "reference.txt"     
+def open_url(url):
+    """用瀏覽器打開超連結"""
+    if url and (url.startswith("http://") or url.startswith("https://")):
+        webbrowser.open(url)
 
-# 2. 完全動態讀取 reference.txt 的標題
-menu_title = ""
-if os.path.exists(TXT_PATH):
-    try:
-        with open(TXT_PATH, "r", encoding="utf-8-sig") as f:
-            for line in f:
-                if "MENU_TITLE:" in line:
-                    menu_title = line.split("MENU_TITLE:", 1)[1].strip()
-                    break
-    except Exception as e:
-        menu_title = f"[讀取標題出錯: {str(e)}]"
-else:
-    menu_title = "[找不到 reference.txt 檔案]"
-
-# 3. 讀取 Excel 資料
-if os.path.exists(EXCEL_PATH):
-    df = pd.read_excel(EXCEL_PATH)
-    df.columns = df.columns.str.strip().str.replace(r'\s+', ' ', regex=True)
-else:
-    st.error(f"找不到檔案：{EXCEL_PATH}，請確認檔案已上傳至 GitHub。")
-    st.stop()
-
-# 4. 定義網頁精確排版的 HTML 產生器
-def generate_html_line(text, font_size, position, skip_line, url=None):
-    margin_left = position
-
-    # 判斷有無超連結，決定是否右移
-    has_url = pd.notna(url) and str(url).strip() != "" and str(url).strip().lower() != "nan"
-    if not has_url:
-        margin_left += 16
-        content = f"<span>{text}</span>"
-    else:
-        clean_text = text.replace(str(url), "").strip()
-        content = f'<span style="color: #000;">{clean_text}</span> &nbsp;&nbsp; <a href="{url}" target="_blank" style="color: #1a0dab; text-decoration: underline; font-weight: bold;">{url}</a>'
-
-    bottom_gap = "0.10em" if skip_line >= 2 else "0.05em"
-    line_hgt = "1.0" if skip_line >= 2 else "0.4"
-
-    html = f"""
-    <div style="font-size: {font_size}px; margin-left: {margin_left}px; margin-bottom: {bottom_gap}; line-height:{line_hgt}; font-family: sans-serif; white-space: pre-wrap;">
-        {content}
-    </div>
-    """
-    return html
-
-# 5. 使用 Streamlit Session State 控制選單切換狀態
-if "current_page" not in st.session_state:
-    st.session_state.current_page = "MAIN"
-
-# --- 畫面渲染開始 ---
-
-# 顯示置中大標題
-st.markdown(f'<div style="font-size: 28px; font-weight: bold; text-align: center; margin-bottom: 30px; font-family: sans-serif;">{menu_title}</div>', unsafe_allow_html=True)
-
-# 狀態一：顯示主選單
-if st.session_state.current_page == "MAIN":
-    # 篩選 GROUP == "MENU"
-    menu_df = df[df['GROUP'].astype(str).str.strip() == 'MENU']
-
-    # 建立主選單按鈕
-    for _, row in menu_df.iterrows():
-        key = str(row['KEY']).strip()
-        desc = str(row['Option Description']).strip()
-        position = int(row['position'])
+class MenuApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("選股功能主選單")
+        self.root.geometry("1000x700")
         
-        # 建立一個左邊縮排的區塊來放按鈕
-        col_space, col_btn = st.columns([position if position > 0 else 1, 100])
-        with col_btn:
-            # 使用 streamlit 按鈕，點擊後更新狀態並重新整理網頁
-            if st.button(f"{key} : {desc}", key=f"btn_{key}"):
-                st.session_state.current_page = key
-                st.rerun()
+        # 讀取 Excel 資料
+        try:
+            self.df = pd.read_excel("data.xlsx")
+            # 去除欄位名稱前後的空白
+            self.df.columns = self.df.columns.str.strip()
+        except Exception as e:
+            lbl = tk.Label(root, text=f"無法讀取 data.xlsx: {e}", fg="red", font=("Microsoft JhengHei", 16))
+            lbl.pack(pady=20)
+            return
 
-# 狀態二：顯示子選單
-else:
-    group_key = st.session_state.current_page
-    
-    # 返回主選單按鈕區塊
-    col_space, col_back = st.columns([50, 100])
-    with col_back:
-        if st.button("⬅️ 返回主選單"):
-            st.session_state.current_page = "MAIN"
-            st.rerun()
+        # 顯示主畫面
+        self.show_main_menu()
+
+    def clear_window(self):
+        """清除視窗內所有元件"""
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+    def show_main_menu(self):
+        """(A) & (B) 呈現主選單畫面"""
+        self.clear_window()
+        
+        # 讀取並顯示 reference.txt 的歡迎詞
+        welcome_title = read_reference_title()
+        title_label = tk.Label(
+            self.root, 
+            text=welcome_title, 
+            font=("Microsoft JhengHei", 18, "bold"), 
+            wraplength=900, 
+            justify="center"
+        )
+        title_label.pack(pady=25)
+
+        # 篩選 GROUP == "MENU" 的資料
+        menu_df = self.df[self.df["GROUP"].astype(str).str.strip() == "MENU"]
+
+        # 建立選單按鈕容器
+        menu_frame = tk.Frame(self.root)
+        menu_frame.pack(fill="both", expand=True, px=50)
+
+        for _, row in menu_df.iterrows():
+            key = str(row["KEY"]).strip()
+            desc = str(row["Option Description"]).strip()
             
-    st.write("---") # 分隔線
+            # 讀取排版參數（若為空則給予預設值）
+            f_size = int(row["Font size (px)"]) if pd.notna(row["Font size (px)"]) else 24
+            pos = int(row["position"]) if pd.notna(row["position"]) else 150
+            skip_line = int(row["SKIP LINE"]) if pd.notna(row["SKIP LINE"]) else 2
 
-    # 篩選對應的 GROUP 資料
-    sub_df = df[df['GROUP'].astype(str).str.strip() == group_key]
+            # 設定按鈕顯示文字，例如 "A : 提問 GOOGLE 或 其他"
+            button_text = f"{key} :  {desc}"
+            
+            # 建立按鈕，點擊時進入子選單，並傳入對應的 KEY (如 'A', 'B')
+            btn = tk.Button(
+                menu_frame, 
+                text=button_text, 
+                font=("Microsoft JhengHei", int(f_size * 0.75)),  # 轉換為 tkinter font size
+                anchor="w",  # 文字靠左
+                justify="left",
+                command=lambda k=key: self.show_sub_menu(k)
+            )
+            # 使用 position 作為左邊的留白 (padx)，並依據 SKIP LINE 調整上下間距 (pady)
+            btn.pack(fill="x", padx=pos, pady=skip_line * 6, anchor="w")
 
-    html_content = ""
-    for _, row in sub_df.iterrows():
-        desc = str(row['Option Description']).strip()
-        font_size = int(row['Font size (px)'])
-        position = int(row['position'])
-        skip_line = int(row['SKIP LINE'])
+    def show_sub_menu(self, group_key):
+        """(C) 呈現子選單畫面 (依據所選的 GROUP)"""
+        self.clear_window()
 
-        # 檢查有無超連結
-        url = None
-        if 'hyperlink' in df.columns and not pd.isna(row['hyperlink']):
-            url_str = str(row['hyperlink']).strip()
-            if url_str != "" and url_str.lower() != "nan":
-                url = url_str
+        # 建立頂部導航與關閉按鈕區域
+        top_frame = tk.Frame(self.root)
+        top_frame.pack(fill="x", padx=20, pady=10)
 
-        html_content += generate_html_line(desc, font_size, position, skip_line, url)
+        # 回主選單按鈕
+        btn_back = tk.Button(
+            top_frame, 
+            text="返回主選單", 
+            font=("Microsoft JhengHei", 12), 
+            command=self.show_main_menu
+        )
+        btn_back.pack(side="left")
 
-    # 將精確排版的 HTML 渲染到網頁上
-    st.markdown(html_content, unsafe_allow_html=True)
+        # 關閉視窗按鈕
+        btn_close = tk.Button(
+            top_frame, 
+            text="關閉視窗", 
+            font=("Microsoft JhengHei", 12), 
+            bg="#ff4d4d", 
+            fg="white", 
+            command=self.root.quit
+        )
+        btn_close.pack(side="right")
+
+        # 建立滾動區域以防內容過長
+        canvas = tk.Canvas(self.root)
+        scrollbar = tk.Scrollbar(self.root, orient="vertical", command=canvas.yview)
+        scroll_frame = tk.Frame(canvas)
+
+        scroll_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True, padx=20, pady=10)
+        scrollbar.pack(side="right", fill="y")
+
+        # 篩選對應 GROUP 的資料 (例如 GROUP == "B")
+        sub_df = self.df[self.df["GROUP"].astype(str).str.strip() == group_key]
+
+        for _, row in sub_df.iterrows():
+            desc = str(row["Option Description"]).strip()
+            f_size = int(row["Font size (px)"]) if pd.notna(row["Font size (px)"]) else 16
+            pos = int(row["position"]) if pd.notna(row["position"]) else 50
+            skip_line = int(row["SKIP LINE"]) if pd.notna(row["SKIP LINE"]) else 1
+            is_hyperlink = str(row["hyperlink"]).strip().upper() == "Y"
+
+            # 建立文字標籤或超連結
+            if is_hyperlink:
+                # 如果是超連結，文字改為藍色、加底線，並綁定點擊事件
+                lbl = tk.Label(
+                    scroll_frame, 
+                    text=desc, 
+                    font=("Microsoft JhengHei", int(f_size * 0.75), "underline"), 
+                    fg="blue", 
+                    cursor="hand2",
+                    anchor="w",
+                    justify="left"
+                )
+                lbl.bind("<Button-1>", lambda event, url=desc: open_url(url))
+            else:
+                lbl = tk.Label(
+                    scroll_frame, 
+                    text=desc, 
+                    font=("Microsoft JhengHei", int(f_size * 0.75)), 
+                    anchor="w",
+                    justify="left"
+                )
+
+            # 依據 position 欄位決定左邊縮排，依據 SKIP LINE 決定下方間距
+            lbl.pack(fill="x", padx=pos, pady=(0, skip_line * 8), anchor="w")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = MenuApp(root)
+    root.mainloop()
 
 
