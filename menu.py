@@ -58,8 +58,8 @@ else:
     group_key = st.session_state.current_page
     df = st.session_state.df
     
-    # 頂部導航控制列
-    col1, col2 = st.columns()
+    # 【核心修正】：傳入參數 2，明確指定切分為 2 欄
+    col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
             st.session_state.current_page = 'Main'
@@ -73,7 +73,7 @@ else:
     # 篩選對應 GROUP 的資料
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
 
-    # 【核心修正】：將所有行打包進同一個 HTML 容器中，精準控制每一行的 margin
+    # 將所有行打包進同一個 HTML 容器中，精準控制每一行的 margin
     html_content = "<div style='line-height: 1.5; font-family: sans-serif;'>"
     
     for _, row in sub_df.iterrows():
