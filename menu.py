@@ -4,8 +4,8 @@ import ipywidgets as widgets
 from IPython.display import display, HTML
 
 # 1. 設定檔案路徑（修正：改為 Colab 絕對路徑，確保讀取成功）
-EXCEL_PATH = "/content/data.xlsx"       # 如果您的 Excel 檔名不同請自行修改
-TXT_PATH = "/content/reference.txt"     # 強制指定 Colab 根目錄路徑
+EXCEL_PATH = "data.xlsx"       # 如果您的 Excel 檔名不同請自行修改
+TXT_PATH = "reference.txt"     # 強制指定 Colab 根目錄路徑
 
 # 2. 完全動態讀取 reference.txt，絕不硬編碼標題內容
 menu_title = ""
