@@ -49,7 +49,7 @@ if st.session_state.current_page == 'Main':
     st.markdown("""
         <style>
         div.stButton > button p {
-            font-size: 25px !important;
+            font-size: 23px !important;
             color: #0066cc !important;
             font-weight: bold !important;
         }
