@@ -49,7 +49,13 @@ if st.session_state.current_page == 'Main':
         key = str(row["KEY"]).strip() if "KEY" in row else ""
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
         
-        if st.button(f" {key} : {desc}", use_container_width=True):
+        # 讀取 Excel 中的字體大小，若無欄位或空白則預設 24px
+        font_size = int(row["FONT SIZE (PX)"]) if ("FONT SIZE (PX)" in row and pd.notna(row["FONT SIZE (PX)"])) else 24
+        
+        # 帶入動態字體大小與藍色
+        button_text = f"<span style='color: #1a73e8; font-size: {font_size}px; font-weight: bold;'> {key} : {desc}</span>"
+        
+        if st.button(button_text, use_container_width=True):
             st.session_state.current_page = key
             st.rerun()
 
