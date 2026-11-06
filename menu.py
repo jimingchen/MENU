@@ -45,7 +45,7 @@ if st.session_state.current_page == 'Main':
     df = st.session_state.df
     menu_df = df[df["GROUP"].astype(str).str.strip() == "MENU"]
 
-    # 注入 CSS 樣式：強制將頁面上所有 st.button 的字體放大至 28px、顏色設為藍色
+    # 注入 CSS 樣式：強制將頁面上所有 st.button 的字體放大至 23px、顏色設為藍色
     st.markdown("""
         <style>
         div.stButton > button p {
