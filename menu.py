@@ -44,17 +44,17 @@ if st.session_state.current_page == 'Main':
 
     df = st.session_state.df
     menu_df = df[df["GROUP"].astype(str).str.strip() == "MENU"]
-    
+
     # 注入 CSS 樣式：強制將頁面上所有 st.button 的字體放大至 28px、顏色設為藍色
-        st.markdown("""
-            <style>
-            div.stButton > button p {
-                font-size: 28px !important;
-                color: #0066cc !important;
-                font-weight: bold !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+        div.stButton > button p {
+            font-size: 28px !important;
+            color: #0066cc !important;
+            font-weight: bold !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     for _, row in menu_df.iterrows():
         key = str(row["KEY"]).strip() if "KEY" in row else ""
