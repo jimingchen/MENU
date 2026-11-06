@@ -6,18 +6,35 @@ import pandas as pd
 st.set_page_config(page_title="選股功能主選單", layout="centered")
 
 def read_reference_title():
-    """讀取 reference.txt 中的 MENU_TITLE"""
-    title = "歡迎 來到選股功能 , 祝 身體健康 , 投資順利"  # 預設標題
+    """讀取 reference.txt 中的 MENU_TITLE、HINT1 與 HINT2"""
+    # 預設標題（若檔案不存在或沒讀到任何內容時使用）
+    default_title = "歡迎 來到選股功能，祝 身體健康，投資順利"
+    
     if os.path.exists("reference.txt"):
         try:
+            # 用來依序儲存找到的文字行
+            title_lines = []
+            
             with open("reference.txt", "r", encoding="utf-8") as f:
                 for line in f:
-                    if line.startswith("MENU_TITLE:"):
-                        title = line.replace("MENU_TITLE:", "").strip()
-                        break
+                    line_str = line.strip()
+                    
+                    # 檢查是否包含目標關鍵字
+                    if line_str.startswith("MENU_TITLE:"):
+                        title_lines.append(line_str.replace("MENU_TITLE:", "").strip())
+                    elif line_str.startswith("HINT1:"):
+                        title_lines.append(line_str.replace("HINT1:", "").strip())
+                    elif line_str.startswith("HINT2:"):
+                        title_lines.append(line_str.replace("HINT2:", "").strip())
+            
+            # 如果有讀到任何內容，用換行字元組合；否則回傳預設標題
+            if title_lines:
+                return "\n".join(title_lines)
+                
         except Exception as e:
             pass
-    return title
+            
+    return default_title
 
 # 2. 初始化 Excel 資料
 if 'df' not in st.session_state:
