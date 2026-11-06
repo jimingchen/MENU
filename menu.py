@@ -5,31 +5,21 @@ import pandas as pd
 # 1. 讀取標題與設定頁面
 st.set_page_config(page_title="選股功能主選單", layout="centered")
 
-def read_reference_title():
-    """讀取 reference.txt 中的資訊，並以字典形式分開回傳"""
-    # 初始化預設值，HINT1 和 HINT2 預設為 None（代表不存在）
-    res = {
-        "title": "歡迎 來到選股功能，祝 身體健康，投資順利",
-        "hint1": None,
-        "hint2": None
-    }
-    
-    if os.path.exists("reference.txt"):
-        try:
-            with open("reference.txt", "r", encoding="utf-8") as f:
-                for line in f:
-                    line_str = line.strip()
-                    
-                    if line_str.startswith("MENU_TITLE:"):
-                        res["title"] = line_str.replace("MENU_TITLE:", "").strip()
-                    elif line_str.startswith("HINT1:"):
-                        res["hint1"] = line_str.replace("HINT1:", "").strip()
-                    elif line_str.startswith("HINT2:"):
-                        res["hint2"] = line_str.replace("HINT2:", "").strip()
-        except Exception as e:
-            pass
-            
-    return res
+info_dict = read_reference_title()
+
+# 2. 顯示主標題：只取字典裡的 ["title"]（通常為原本的黑色/預設色）
+title_label = tk.Label(root, text=info_dict["title"], font=("Microsoft JhengHei", 14, "bold"))
+title_label.pack(anchor="w", padx=10, pady=2)
+
+# 3. 檢查並顯示 HINT1：只取 ["hint1"]，並設定為淡紅色 (fg="#FF6B6B")
+if info_dict["hint1"]:
+    hint1_label = tk.Label(root, text=info_dict["hint1"], fg="#FF6B6B", font=("Microsoft JhengHei", 12))
+    hint1_label.pack(anchor="w", padx=10, pady=2)
+
+# 4. 檢查並顯示 HINT2：只取 ["hint2"]，並設定為淡紅色 (fg="#FF6B6B")
+if info_dict["hint2"]:
+    hint2_label = tk.Label(root, text=info_dict["hint2"], fg="#FF6B6B", font=("Microsoft JhengHei", 12))
+    hint2_label.pack(anchor="w", padx=10, pady=2)
 
 # 2. 初始化 Excel 資料
 if 'df' not in st.session_state:
