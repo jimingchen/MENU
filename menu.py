@@ -45,9 +45,27 @@ if st.session_state.current_page == 'Main':
     df = st.session_state.df
     menu_df = df[df["GROUP"].astype(str).str.strip() == "MENU"]
 
-    # 注入 CSS 樣式：強制將頁面上所有 st.button 的字體放大至 23px、顏色設為藍色
+    # 注入 CSS 樣式：縮小空白 A、B，並將按鈕字體放大與變藍色
     st.markdown("""
         <style>
+        /* 縮小最上方空白 A */
+        .block-container {
+            padding-top: 1.5rem !important;  /* 數字越小，上方空白 A 越少 */
+        }
+        
+        /* 縮小歡迎詞標題的上下外邊距 */
+        h3 {
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+        }
+        
+        /* 縮小灰線（st.write("---")）的上下間距 B */
+        hr {
+            margin-top: 5px !important;      /* 灰線與上方歡迎詞的距離 */
+            margin-bottom: 10px !important;  /* 灰線與下方第一個按鈕的距離 */
+        }
+
+        /* 原本的按鈕樣式設定 */
         div.stButton > button p {
             font-size: 23px !important;
             color: #0066cc !important;
