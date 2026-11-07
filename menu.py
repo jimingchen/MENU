@@ -117,7 +117,7 @@ else:
     st.write("---")
 
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
-    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 16px;'>"
+    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 20px;'>"
     
     is_first_line = True
     for _, row in sub_df.iterrows():
