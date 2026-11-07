@@ -118,8 +118,7 @@ else:
 #   使用更精準的十六進位網頁色碼（較推薦，可自由調整深淺） #008000 綠色
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
-#   html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; color: #008000;'>"
-    
+   
     is_first_line = True
     for _, row in sub_df.iterrows():
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
@@ -135,7 +134,7 @@ else:
             top_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
         
         line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; margin-bottom: 0px; padding: 0px; display: block;"
-
+        # 綠色 #008000 
         if is_hyperlink:
             html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
