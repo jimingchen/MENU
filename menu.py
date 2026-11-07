@@ -115,9 +115,10 @@ else:
             st.warning("請直接關閉瀏覽器分頁。")
 
     st.write("---")
-
+#   使用更精準的十六進位網頁色碼（較推薦，可自由調整深淺） #008000 綠色
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
-    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
+#   html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
+    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; color: #008000;'>"
     
     is_first_line = True
     for _, row in sub_df.iterrows():
