@@ -29,17 +29,35 @@ def read_reference_title():
 
 # 1. 設定頁面
 st.set_page_config(page_title="選股功能主選單", layout="centered")
-st.components.v1.html(
-    """
-    <script>
-    const viewport = window.parent.document.querySelector('meta[name="viewport"]');
-    if (viewport) {
-        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=yes');
-    }
-    </script>
-    """,
-    height=0,
-)
+# 初始化縮放比例 (預設為 100%)
+if 'zoom_level' not in st.session_state:
+    st.session_state.zoom_level = 100
+
+# 建立 3 個按鈕（放大、縮小、還原）
+zoom_col1, zoom_col2, zoom_col3 = st.columns(3)
+with zoom_col1:
+    if st.button("➕ 畫面放大", use_container_width=True):
+        st.session_state.zoom_level = min(st.session_state.zoom_level + 15, 200) # 最高放大到 200%
+        st.rerun()
+with zoom_col2:
+    if st.button("➖ 畫面縮小", use_container_width=True):
+        st.session_state.zoom_level = max(st.session_state.zoom_level - 15, 70)  # 最低縮小到 70%
+        st.rerun()
+with zoom_col3:
+    if st.button("🔄 恢復預設", use_container_width=True):
+        st.session_state.zoom_level = 100
+        st.rerun()
+
+# 動態注入 CSS，將整個網頁依據比例縮放
+st.markdown(f"""
+    <style>
+    .block-container, div[data-testid="stVerticalBlock"] {{
+        zoom: {st.session_state.zoom_level}%;
+        -moz-transform: scale({st.session_state.zoom_level / 100}); /* 針對 Firefox 瀏覽器 */
+        -moz-transform-origin: top center;
+    }}
+    </style>
+""", unsafe_allow_html=True)
 
 # 2. 初始化 Excel 資料
 if 'df' not in st.session_state:
