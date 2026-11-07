@@ -29,6 +29,17 @@ def read_reference_title():
 
 # 1. 設定頁面
 st.set_page_config(page_title="選股功能主選單", layout="centered")
+st.components.v1.html(
+    """
+    <script>
+    const viewport = window.parent.document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, user-scalable=yes');
+    }
+    </script>
+    """,
+    height=0,
+)
 
 # 2. 初始化 Excel 資料
 if 'df' not in st.session_state:
