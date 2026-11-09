@@ -199,7 +199,7 @@ else:
         st.write("---")
         
         # 排版：左邊標題，右邊關閉按鈕
-        v_col1, v_col2 = st.columns()
+        v_col1, v_col2 = st.columns(2)
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
