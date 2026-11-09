@@ -169,7 +169,7 @@ else:
         
         line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; margin-bottom: 0px; padding: 0px; display: block;"
         # 綠色 #008000 
-        f is_hyperlink:
+        if is_hyperlink:
             url_lower = desc.strip().lower()
             # 判斷是否為 MP4 影片檔案
             if url_lower.endswith('.mp4'):
