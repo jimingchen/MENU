@@ -153,18 +153,46 @@ else:
 
     st.write("---")
 
-    # 關鍵修正 1：在畫面上方先默默檢查有沒有使用者點擊影片的網址參數傳進來
-    query_params = st.query_params
-    if "play_video" in query_params:
-        st.session_state.active_video = query_params["play_video"]
-        # 存入 session_state 後，立刻清空網址列參數，維持路由穩定不跳回主選單
-        st.query_params.clear()
+    # 關鍵修正 1：動態注入 CSS 樣式，將特定按鈕的灰框、背景完全隱藏，模擬成圖 A 的超連結外觀
+    st.markdown("""
+        <style>
+        /* 隱藏特殊超連結按鈕的背景、邊框與陰影 */
+        div[data-testid="stButton"] > button[key^="vid_link_"] {
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0px !important;
+            margin: 0px !important;
+            min-height: 0px !important;
+            height: auto !important;
+            line-height: 1.5 !important;
+            text-align: left !important;
+            justify-content: flex-start !important;
+        }
+        /* 定義按鈕內文字的顏色、粗體與底線，完美複製圖 A */
+        div[data-testid="stButton"] > button[key^="vid_link_"] p {
+            color: #1a73e8 !important;
+            font-weight: bold !important;
+            text-decoration: underline !important;
+            font-size: 18px !important;
+            font-family: sans-serif !important;
+            white-space: pre-wrap !important; /* 防止長網址被強行截斷或塞在框內 */
+        }
+        /* 滑鼠懸停時的顏色變化 */
+        div[data-testid="stButton"] > button[key^="vid_link_"]:hover {
+            color: #1557b0 !important;
+            background-color: transparent !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
-    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
+    
+    # 建立一個統一的 HTML 容器處理一般文字排版
+    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
    
     is_first_line = True
-    for _, row in sub_df.iterrows():
+    for index, row in sub_df.iterrows():
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
         is_hyperlink = str(row["HYPERLINK"]).strip().upper() == "Y" if "HYPERLINK" in row else False
         
@@ -182,17 +210,28 @@ else:
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 關鍵修正 2：外觀完全回復為圖 A 的純 HTML 連結（無斷行、無灰框）
-                # 點擊時傳遞參數給自己（target='_self'），不改變分頁，並透過上方程式碼攔截並鎖定在當前頁面
-                html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                # 先把前面的累積文字渲染出來，確保順序正確
+                if html_content != "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>":
+                    html_content += "</div>"
+                    st.markdown(html_content, unsafe_allow_html=True)
+                    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
+                
+                # 關鍵修正 2：利用剛才設計的樣式，做出排版精準、外觀與圖 A 完全相同的偽裝按鈕
+                # 點擊時純粹操作 session_state，完全不改動瀏覽器網址，保證第一次點擊就原地播放！
+                st.markdown(f"<div style='margin-left: {pos_val}px; margin-top: {top_margin}px;'></div>", unsafe_allow_html=True)
+                if st.button(desc, key=f"vid_link_{index}"):
+                    st.session_state.active_video = desc
+                    st.rerun()
             else:
-                # 正常的 PDF 連結維持原樣，新分頁開啟不下載
+                # 正常的 PDF 連結維持原樣，開新分頁預覽不下載
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
+            # 一般綠色說明文字
             html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
             
-    html_content += "</div>"
-    st.markdown(html_content, unsafe_allow_html=True)
+    if html_content != "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>":
+        html_content += "</div>"
+        st.markdown(html_content, unsafe_allow_html=True)
 
     # 檢查後台狀態：如果有點擊影片，就在原地（下方）渲染播放器
     if 'active_video' in st.session_state and st.session_state.active_video:
