@@ -71,14 +71,18 @@ if 'df' not in st.session_state:
         st.error(f"無法讀取 data.xlsx 檔案，請確認是否與 menu.py 置於同目錄下。錯誤原因: {e}")
         st.stop()
 
-# 關鍵防護網：在網頁重新整理的最早階段，搶先攔截網址列的影片參數
+# 修正後的強效防護網：在網頁重新整理的最早階段，搶先攔截網址列的影片參數並補齊所有變數
 if "play_video" in st.query_params:
-    # 這裡強迫維持在子選單狀態，絕對不准 Streamlit 退回 'Main' 主畫面
-    # 備註：若您的 session_state.current_page 在進入子選單時存的是 group_key，我們在此搶先鎖定它
+    # 1. 檢查如果發現 current_page 遺失了，或是回到了 Main
     if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
-        # 自動從網址列或歷史紀錄中尋找當前的 GROUP 名稱，這裡我們可以直接設定為保持當前狀態
-        pass 
+        # 如果後台有存前一次的有效選單名稱，就用它；如果沒有，就預設留在影片所屬的子選單（例如 'OP'）
+        if 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
+            st.session_state.current_page = st.session_state.last_valid_group
+        else:
+            st.session_state.current_page = 'OP'  # 🌟備註：這裡可以填入您最常使用的子選單名稱（如 'OP'）
+            st.session_state.last_valid_group = 'OP'
 else:
+    # 正常狀況（網址沒有影片參數）：如果沒有 current_page，預設為 Main
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'Main'
 
@@ -146,7 +150,7 @@ else:
     group_key = st.session_state.current_page
     df = st.session_state.df
     
-    # 進入子選單時，將當前的分頁群組名稱牢牢鎖定在後台，防止變更網址時走丟
+    # 只要成功進入此分頁，就立刻把當前的群組名稱存起來，供最頂端重新整理時使用
     st.session_state.last_valid_group = group_key
     
     col1, col2 = st.columns(2)
@@ -167,13 +171,13 @@ else:
     query_params = st.query_params
     if "play_video" in query_params:
         st.session_state.active_video = query_params["play_video"]
-        # 確保頁面維持在點擊前的子選單
+        # 再次確保頁面群組不遺失
         if 'last_valid_group' in st.session_state:
             st.session_state.current_page = st.session_state.last_valid_group
 
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
     
-    # 💎 100% 恢復圖 A 最自然的純 HTML 文字排版（行高 1.5，字體對齊完美，無任何隱藏按鈕產生的空白間距）
+    # 100% 恢復圖 A 最自然的純 HTML 文字排版（行高 1.5，字體完美一致，無多餘間距）
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
    
     is_first_line = True
@@ -195,7 +199,6 @@ else:
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 採用最標準的純 HTML 超連結（指向自己），配合步驟 1 的最頂端攔截機制
                 # target='_self' 保證不開新分頁、不觸發下載，外觀字體與 PDF 超連結 100% 完美一致
                 html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             else:
@@ -212,7 +215,7 @@ else:
     if 'active_video' in st.session_state and st.session_state.active_video:
         st.write("---")
         
-        # 排版：左邊標題，右邊關閉按鈕
+        # 排邊：左邊標題，右邊關閉按鈕
         v_col1, v_col2 = st.columns(2)
         with v_col1:
             st.subheader("📺 影片線上播放")
