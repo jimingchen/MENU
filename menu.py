@@ -153,10 +153,10 @@ else:
 
     st.write("---")
 
-    # 關鍵修正 1：動態注入 CSS 樣式，將特定按鈕的灰框、背景完全隱藏，模擬成圖 A 的超連結外觀
+    # 關鍵修正：全新升級的 CSS 選擇器，全方位捕捉並強制修改按鈕內部的所有文字樣式
     st.markdown("""
         <style>
-        /* 隱藏特殊超連結按鈕的背景、邊框與陰影 */
+        /* 1. 徹底隱藏按鈕的外框、背景與陰影，並允許內容靠左、自動換行 */
         div[data-testid="stButton"] > button[key^="vid_link_"] {
             background-color: transparent !important;
             border: none !important;
@@ -168,20 +168,28 @@ else:
             line-height: 1.5 !important;
             text-align: left !important;
             justify-content: flex-start !important;
+            display: inline-block !important; /* 讓長網址像普通超連結一樣自然排列 */
+            width: auto !important;
         }
-        /* 定義按鈕內文字的顏色、粗體與底線，完美複製圖 A */
-        div[data-testid="stButton"] > button[key^="vid_link_"] p {
+        
+        /* 2. 重點：全面強制修改按鈕內所有層級的文字樣式（包含 p, span, div 或純文字），完美複製圖 A */
+        div[data-testid="stButton"] > button[key^="vid_link_"],
+        div[data-testid="stButton"] > button[key^="vid_link_"] * {
             color: #1a73e8 !important;
             font-weight: bold !important;
             text-decoration: underline !important;
             font-size: 18px !important;
             font-family: sans-serif !important;
-            white-space: pre-wrap !important; /* 防止長網址被強行截斷或塞在框內 */
+            white-space: normal !important;   /* 允許長網址在正常位置自動換行，不被強行截斷 */
+            word-break: break-all !important; /* 確保長網址在邊界正常切斷，不會縮成奇怪形狀 */
         }
-        /* 滑鼠懸停時的顏色變化 */
-        div[data-testid="stButton"] > button[key^="vid_link_"]:hover {
+        
+        /* 3. 滑鼠懸停時的顏色變化（深藍色） */
+        div[data-testid="stButton"] > button[key^="vid_link_"]:hover,
+        div[data-testid="stButton"] > button[key^="vid_link_"]:hover * {
             color: #1557b0 !important;
             background-color: transparent !important;
+            text-decoration: underline !important;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -216,9 +224,10 @@ else:
                     st.markdown(html_content, unsafe_allow_html=True)
                     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
                 
-                # 關鍵修正 2：利用剛才設計的樣式，做出排版精準、外觀與圖 A 完全相同的偽裝按鈕
-                # 點擊時純粹操作 session_state，完全不改動瀏覽器網址，保證第一次點擊就原地播放！
-                st.markdown(f"<div style='margin-left: {pos_val}px; margin-top: {top_margin}px;'></div>", unsafe_allow_html=True)
+                # 建立外部定位容器，精準對齊圖 A 的位置與間距
+                st.markdown(f"<div style='margin-left: {pos_val}px; margin-top: {top_margin}px; display: block;'></div>", unsafe_allow_html=True)
+                
+                # 渲染處理過的偽裝按鈕（完全不改網址，保證第 1 次點擊原地播放）
                 if st.button(desc, key=f"vid_link_{index}"):
                     st.session_state.active_video = desc
                     st.rerun()
@@ -242,7 +251,7 @@ else:
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
-            # 點擊關閉，直接把後台影片狀態重設為 None 並刷新
+            # 點擊關閉，直接把後台影片狀態重設為 None並刷新
             if st.button("❌ 關閉影片", use_container_width=True):
                 st.session_state.active_video = None
                 st.rerun()
