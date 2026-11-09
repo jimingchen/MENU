@@ -23,6 +23,8 @@ def read_reference_title():
                         res["hint1"] = line_str.replace("HINT1:", "").strip()
                     elif line_str.startswith("HINT2:"):
                         res["hint2"] = line_str.replace("HINT2:", "").strip()
+                    elif line_str.startswith("HINT3:"):
+                        res["hint3"] = line_str.replace("HINT3:", "").strip()    
         except Exception as e:
             pass
     return res
@@ -93,7 +95,10 @@ if st.session_state.current_page == 'Main':
     # 檢查並加入 HINT2：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
     if info_dict.get("hint2"):
         title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint2']}</div>"
-        
+
+    # 檢查並加入 HINT2：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
+    if info_dict.get("hint3"):
+        title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint3']}</div>"
     title_html += "</div>"
     
     # 一次性將標題與提示文字渲染到網頁畫面上
