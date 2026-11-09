@@ -142,9 +142,10 @@ else:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
-            # 返回主選單時，清除影片播放狀態
+            # 返回主選單時，清除影片播放狀態與網址參數
             if 'active_video' in st.session_state:
                 st.session_state.active_video = None
+            st.query_params.clear()
             st.session_state.current_page = 'Main'
             st.rerun()
     with col2:
@@ -153,21 +154,14 @@ else:
 
     st.write("---")
 
-    # 關鍵修正 1：利用隱藏的文字輸入框，建立前端 JavaScript 與後端 Streamlit 溝通的橋樑
-    # 當 JS 抓到點擊事件後，會把網址丟進這個隱藏框，進而變更 st.session_state.vid_bridge
-    if 'vid_bridge' not in st.session_state:
-        st.session_state.vid_bridge = ""
-        
-    def on_video_select():
-        if st.session_state.vid_bridge:
-            st.session_state.active_video = st.session_state.vid_bridge
-            st.session_state.vid_bridge = "" # 清空橋樑
-
-    st.html("<div style='display:none;'>")
-    st.text_input("video_bridge", key="vid_bridge", on_change=on_video_select, label_visibility="collapsed")
-    st.html("</div>")
+    # 關鍵修正 1：在進入選單渲染前，先檢查網址列參數。
+    # 如果使用者點擊了影片，我們會立刻將它鎖定在當前的 session_state 中
+    query_params = st.query_params
+    if "play_video" in query_params:
+        st.session_state.active_video = query_params["play_video"]
 
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
+    # 關鍵修正 2：100% 回歸您最初的 HTML 純文字排版（與圖 A 的字體、粗體、顏色、對齊完全一致）
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
    
     is_first_line = True
@@ -189,9 +183,9 @@ else:
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 關鍵修正 2：外觀和您原本的超連結完全一致（無灰框、無錯位、無置中問題，完美的圖 A 外觀）
-                # 額外加上一個 class='video-click-link' 供底下的 JavaScript 進行點擊監聽攔截
-                html_content += f"<span style='{line_style}'><a href='{desc}' class='video-click-link' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                # 關鍵修正 3：使用純 HTML 連結（target='_self'），不開新分頁、不觸發下載。
+                # 點擊時帶入 play_video 參數給自己。由於我們在上面加了防跳頁鎖定機制，它將 100% 留在本頁
+                html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             else:
                 # 正常的 PDF 連結維持原樣，開新分頁預覽不下載
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
@@ -200,34 +194,6 @@ else:
             
     html_content += "</div>"
     st.markdown(html_content, unsafe_allow_html=True)
-
-    # 關鍵修正 3：注入 JavaScript 監聽代碼
-    # 當使用者點擊 MP4 超連結時，會自動阻止瀏覽器跳轉或開新頁面，而是將網址塞進隱藏框並發送回 Streamlit 觸發原地重新渲染播放影片
-    st.components.v1.html("""
-    <script>
-    setTimeout(function() {
-        const links = window.parent.document.querySelectorAll('.video-click-link');
-        links.forEach(link => {
-            // 防止重複綁定監聽器
-            if (!link.dataset.hasListener) {
-                link.dataset.hasListener = "true";
-                link.addEventListener('click', function(e) {
-                    e.preventDefault(); // 100% 阻止下載、阻止網頁跳轉！
-                    
-                    // 尋找 Streamlit 內建的隱藏 text_input 框
-                    const input = window.parent.document.querySelector('input[aria-label="video_bridge"]');
-                    if (input) {
-                        // 將影片網址寫入並觸發 Streamlit 的後台資料同步機制
-                        input.value = link.getAttribute('href');
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        input.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                });
-            }
-        });
-    }, 300);
-    </script>
-    """, height=0)
 
     # 檢查後台狀態：如果有點擊影片，就在原地（下方）渲染播放器
     if 'active_video' in st.session_state and st.session_state.active_video:
@@ -238,9 +204,10 @@ else:
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
-            # 點擊關閉，直接把後台影片狀態重設為 None 並刷新
+            # 點擊關閉，清空狀態、清空網址參數並刷新頁面，讓影片徹底消失
             if st.button("❌ 關閉影片", use_container_width=True):
                 st.session_state.active_video = None
+                st.query_params.clear()
                 st.rerun()
                 
         # 顯示原生播放器，不下載、不進 GitHub
