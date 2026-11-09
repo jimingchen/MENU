@@ -142,9 +142,8 @@ else:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
-            # 返回主選單時，順便清除目前播放的影片狀態
-            if 'active_video_url' in st.session_state:
-                del st.session_state.active_video_url
+            # 關鍵修正 1：返回主選單時，徹底清空網址列參數，避免下次進來又播影片
+            st.query_params.clear()
             st.session_state.current_page = 'Main'
             st.rerun()
     with col2:
@@ -175,12 +174,10 @@ else:
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 關鍵修改：如果是 MP4 檔案，我們不生成一般連結，改用 Streamlit 按鈕或自訂連結觸發後台狀態
-                # 這裡做成一個特別的點擊事件（透過帶有 query 參數的超連結或按鈕，此處採簡單點擊方案，直接用 Streamlit 的按鈕效果最好）
-                # 但為了維持您原本的版面排版，我們改用 html href 指向自己，並利用 streamlit 重新整理來偵測
+                # 指向當前頁面並帶入播放參數
                 html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             else:
-                # 正常的 PDF 連結維持原樣，新分頁直接線上看
+                # 正常的 PDF 連結維持原樣
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
             html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
@@ -193,8 +190,18 @@ else:
     if "play_video" in query_params:
         video_target = query_params["play_video"]
         st.write("---")
-        st.subheader("📺 影片線上播放")
-        # 使用 Streamlit 原生播放器，支援 githack 連結，絕對不下載、不進 GitHub
+        
+        # 關鍵修正 2：利用欄位並排，在標題右邊放一個關閉影片的按鈕
+        v_col1, v_col2 = st.columns([4, 1])
+        with v_col1:
+            st.subheader("📺 影片線上播放")
+        with v_col2:
+            # 點擊此按鈕，直接清空網址參數，影片就會立刻消失
+            if st.button("❌ 關閉影片", use_container_width=True):
+                st.query_params.clear()
+                st.rerun()
+                
+        # 顯示原生播放器
         st.video(video_target, autoplay=True)
 
 
