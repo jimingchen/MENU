@@ -142,7 +142,7 @@ else:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
-            # 返回主選單時，清空當前播放的影片狀態
+            # 返回主選單時，清除影片播放狀態
             if 'active_video' in st.session_state:
                 st.session_state.active_video = None
             st.session_state.current_page = 'Main'
@@ -153,59 +153,62 @@ else:
 
     st.write("---")
 
+    # 關鍵修正 1：在畫面上方先默默檢查有沒有使用者點擊影片的網址參數傳進來
+    query_params = st.query_params
+    if "play_video" in query_params:
+        st.session_state.active_video = query_params["play_video"]
+        # 存入 session_state 後，立刻清空網址列參數，維持路由穩定不跳回主選單
+        st.query_params.clear()
+
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
-    
-    # 遍歷每一行資料
+    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
+   
+    is_first_line = True
     for _, row in sub_df.iterrows():
         desc = str(row["OPTION DESCRIPTION"]).strip() if "OPTION DESCRIPTION" in row else ""
         is_hyperlink = str(row["HYPERLINK"]).strip().upper() == "Y" if "HYPERLINK" in row else False
+        
         pos_val = int(row["POSITION"]) if ("POSITION" in row and pd.notna(row["POSITION"])) else 50
         skip_val = int(row["SKIP LINE"]) if ("SKIP LINE" in row and pd.notna(row["SKIP LINE"])) else 1
         
-        # 處理縮進與空行
-        top_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
+        if is_first_line:
+            top_margin = 0
+            is_first_line = False
+        else:
+            top_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
+        
+        line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; margin-bottom: 0px; padding: 0px; display: block;"
         
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 關鍵修改：利用 Streamlit 內建按鈕來觸發狀態，外觀完全模擬成藍色粗體超連結
-                # 使用 HTML 語法建立精準的位置排版
-                st.markdown(f"<div style='margin-left: {pos_val}px; margin-top: {top_margin}px;'></div>", unsafe_allow_html=True)
-                
-                # 建立一個外觀像超連結的按鈕，點擊時直接把影片網址存入 session_state，不改動網址列
-                if st.button(
-                    desc, 
-                    key=f"vid_btn_{_}", 
-                    help="點擊在下方播放影片",
-                    type="secondary"
-                ):
-                    st.session_state.active_video = desc
-                    st.rerun()
+                # 關鍵修正 2：外觀完全回復為圖 A 的純 HTML 連結（無斷行、無灰框）
+                # 點擊時傳遞參數給自己（target='_self'），不改變分頁，並透過上方程式碼攔截並鎖定在當前頁面
+                html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             else:
-                # PDF 檔案或其他一般網頁：依然使用純 HTML 連結，維持開新分頁預覽不下載
-                line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; display: block;"
-                html_link = f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
-                st.markdown(html_link, unsafe_allow_html=True)
+                # 正常的 PDF 連結維持原樣，新分頁開啟不下載
+                html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
-            # 一般綠色說明文字
-            line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; display: block; color: #008000; font-size: 18px;"
-            st.markdown(f"<span style='{line_style}'>{desc}</span>", unsafe_allow_html=True)
+            html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
+            
+    html_content += "</div>"
+    st.markdown(html_content, unsafe_allow_html=True)
 
-    # 檢查後台狀態：如果使用者點擊了影片按鈕，就在原地（下方）渲染播放器
+    # 檢查後台狀態：如果有點擊影片，就在原地（下方）渲染播放器
     if 'active_video' in st.session_state and st.session_state.active_video:
         st.write("---")
         
         # 排版：左邊標題，右邊關閉按鈕
-        v_col1, v_col2 = st.columns([3, 1])
+        v_col1, v_col2 = st.columns()
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
-            # 點擊關閉，直接把後台影片狀態重設為 None
+            # 點擊關閉，直接把後台影片狀態重設為 None 並刷新
             if st.button("❌ 關閉影片", use_container_width=True):
                 st.session_state.active_video = None
                 st.rerun()
                 
-        # 顯示原生播放器，100% 原地載入
+        # 顯示原生播放器，不下載、不進 GitHub
         st.video(st.session_state.active_video, autoplay=True)
 
 
