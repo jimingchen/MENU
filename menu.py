@@ -169,24 +169,28 @@ else:
         
         line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; margin-bottom: 0px; padding: 0px; display: block;"
         # 綠色 #008000 
-        if is_hyperlink:
+        f is_hyperlink:
             url_lower = desc.strip().lower()
             # 判斷是否為 MP4 影片檔案
             if url_lower.endswith('.mp4'):
-                # 建立一個新視窗/分頁播放影片的 JavaScript 語法，強迫瀏覽器使用 HTML5 video 標籤，不觸發下載
-                video_html = f"""
+                # 建立一個乾淨的 HTML5 播放網頁
+                video_page = f"""<!DOCTYPE html>
                 <html>
                 <head><title>影片播放</title></head>
-                <body style='margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh;'>
-                    <video controls autoplay name='media' style='max-width:100%; max-height:100%;'>
-                        <source src='{desc}' type='video/mp4'>
+                <body style="margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh;">
+                    <video controls autoplay name="media" style="max-width:100%; max-height:100%;">
+                        <source src="{desc}" type="video/mp4">
                     </video>
                 </body>
-                </html>
-                """.replace("\n", "").replace("'", "\\'")
+                </html>"""
                 
-                js_click = f"id=window.open().document;id.write('{video_html}');id.close();"
-                html_content += f"<span style='{line_style}'><a href='javascript:void(0);' onclick=\"{js_click}\" style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                # 將 HTML 網頁內容轉換為 Base64 編碼，繞過瀏覽器的下載與阻擋機制
+                import base64
+                b64_content = base64.b64encode(video_page.encode('utf-8')).decode('utf-8')
+                data_url = f"data:text/html;base64,{b64_content}"
+                
+                # 使用標準的 target="_blank" 安全開啟新分頁
+                html_content += f"<span style='{line_style}'><a href='{data_url}' target='_blank' rel='noopener noreferrer' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             else:
                 # 正常的 PDF 或其他網址，維持原樣在新分頁開啟
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' rel='noopener noreferrer' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
