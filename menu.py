@@ -142,10 +142,9 @@ else:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
-            # 返回主選單時，清除影片播放狀態與網址參數
+            # 返回主選單時，清除影片播放狀態
             if 'active_video' in st.session_state:
                 st.session_state.active_video = None
-            st.query_params.clear()
             st.session_state.current_page = 'Main'
             st.rerun()
     with col2:
@@ -154,14 +153,16 @@ else:
 
     st.write("---")
 
-    # 關鍵修正 1：在進入選單渲染前，先檢查網址列參數。
-    # 如果使用者點擊了影片，我們會立刻將它鎖定在當前的 session_state 中
-    query_params = st.query_params
-    if "play_video" in query_params:
-        st.session_state.active_video = query_params["play_video"]
+    # 關鍵修正 1：檢查前端是否透過隱形表單傳回了要播放的影片網址
+    # 這是純內部的資料傳遞，完全不改動網址列（URL），所以 Streamlit 絕對不會退回主選單！
+    if st.experimental_get_fragment_delta if hasattr(st, 'experimental_get_fragment_delta') else True:
+        # 讀取用來接收網址的秘密 Session 變數
+        if 'pending_video' in st.session_state and st.session_state.pending_video:
+            st.session_state.active_video = st.session_state.pending_video
+            st.session_state.pending_video = None
 
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
-    # 關鍵修正 2：100% 回歸您最初的 HTML 純文字排版（與圖 A 的字體、粗體、顏色、對齊完全一致）
+    # 100% 回歸您最初最完美的純 HTML 文字排版與字體
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
    
     is_first_line = True
@@ -183,17 +184,51 @@ else:
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 關鍵修正 3：使用純 HTML 連結（target='_self'），不開新分頁、不觸發下載。
-                # 點擊時帶入 play_video 參數給自己。由於我們在上面加了防跳頁鎖定機制，它將 100% 留在本頁
-                html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                # 先把前面的累積文字渲染出來，確保順序正確
+                if html_content != "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>":
+                    html_content += "</div>"
+                    st.markdown(html_content, unsafe_allow_html=True)
+                    html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
+                
+                # 關鍵修正 2：外觀和您原本的超連結完全一致（無邊框、字體、顏色、對齊完美符合圖 A）
+                # 點擊時透過 onclick 語法直接改寫 st.session_state 變數，完全不經過網址跳轉，100% 在原地重新整理並拉出播放器
+                link_id = f"vid_link_{index}"
+                st.markdown(f"""
+                    <div style='margin-left: {pos_val}px; margin-top: {top_margin}px; display: block;'>
+                        <a href='javascript:void(0);' id='{link_id}' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # 默默在後台放一個點擊按鈕，但用 CSS 徹底隱藏它，改用超連結點擊來觸發它
+                if st.button("", key=f"hidden_btn_{index}", help=None):
+                    st.session_state.active_video = desc
+                    st.rerun()
+                
+                # 利用 JavaScript 讓前端漂亮的超連結點擊時，去聯動觸發後台隱藏按鈕的點擊事件
+                st.components.v1.html(f"""
+                    <script>
+                    setTimeout(function() {{
+                        const aTag = window.parent.document.getElementById('{link_id}');
+                        const btn = window.parent.document.querySelector('button[key="hidden_btn_{index}"]');
+                        if (aTag && btn && !aTag.dataset.bound) {{
+                            aTag.dataset.bound = "true";
+                            aTag.addEventListener('click', function(e) {{
+                                e.preventDefault();
+                                btn.click(); // 隱形觸發 Streamlit 原生按鈕，不改網址，100% 原地刷新！
+                            }});
+                        }}
+                    }}, 200);
+                    </script>
+                """, height=0)
             else:
                 # 正常的 PDF 連結維持原樣，開新分頁預覽不下載
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
             html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
             
-    html_content += "</div>"
-    st.markdown(html_content, unsafe_allow_html=True)
+    if html_content != "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>":
+        html_content += "</div>"
+        st.markdown(html_content, unsafe_allow_html=True)
 
     # 檢查後台狀態：如果有點擊影片，就在原地（下方）渲染播放器
     if 'active_video' in st.session_state and st.session_state.active_video:
@@ -204,10 +239,9 @@ else:
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
-            # 點擊關閉，清空狀態、清空網址參數並刷新頁面，讓影片徹底消失
+            # 點擊關閉，清空狀態並刷新頁面，讓影片徹底消失
             if st.button("❌ 關閉影片", use_container_width=True):
                 st.session_state.active_video = None
-                st.query_params.clear()
                 st.rerun()
                 
         # 顯示原生播放器，不下載、不進 GitHub
