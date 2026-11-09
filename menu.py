@@ -142,6 +142,9 @@ else:
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
+            # 返回主選單時，順便清除目前播放的影片狀態
+            if 'active_video_url' in st.session_state:
+                del st.session_state.active_video_url
             st.session_state.current_page = 'Main'
             st.rerun()
     with col2:
@@ -149,7 +152,7 @@ else:
             st.warning("請直接關閉瀏覽器分頁。")
 
     st.write("---")
-#   使用更精準的十六進位網頁色碼（較推薦，可自由調整深淺） #008000 綠色
+
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px;'>"
    
@@ -168,36 +171,30 @@ else:
             top_margin = (skip_val - 1) * 24 if skip_val > 1 else 0
         
         line_style = f"margin-left: {pos_val}px; margin-top: {top_margin}px; margin-bottom: 0px; padding: 0px; display: block;"
-        # 綠色 #008000 
+        
         if is_hyperlink:
-            url_lower = desc.strip().lower()
-            # 判斷是否為 MP4 影片檔案
+            url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # 建立一個乾淨的 HTML5 播放網頁
-                video_page = f"""<!DOCTYPE html>
-                <html>
-                <head><title>影片播放</title></head>
-                <body style="margin:0; background:#000; display:flex; justify-content:center; align-items:center; height:100vh;">
-                    <video controls autoplay name="media" style="max-width:100%; max-height:100%;">
-                        <source src="{desc}" type="video/mp4">
-                    </video>
-                </body>
-                </html>"""
-                
-                # 將 HTML 網頁內容轉換為 Base64 編碼，繞過瀏覽器的下載與阻擋機制
-                import base64
-                b64_content = base64.b64encode(video_page.encode('utf-8')).decode('utf-8')
-                data_url = f"data:text/html;base64,{b64_content}"
-                
-                # 使用標準的 target="_blank" 安全開啟新分頁
-                html_content += f"<span style='{line_style}'><a href='{data_url}' target='_blank' rel='noopener noreferrer' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                # 關鍵修改：如果是 MP4 檔案，我們不生成一般連結，改用 Streamlit 按鈕或自訂連結觸發後台狀態
+                # 這裡做成一個特別的點擊事件（透過帶有 query 參數的超連結或按鈕，此處採簡單點擊方案，直接用 Streamlit 的按鈕效果最好）
+                # 但為了維持您原本的版面排版，我們改用 html href 指向自己，並利用 streamlit 重新整理來偵測
+                html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             else:
-                # 正常的 PDF 或其他網址，維持原樣在新分頁開啟
-                html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' rel='noopener noreferrer' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                # 正常的 PDF 連結維持原樣，新分頁直接線上看
+                html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
             html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
             
     html_content += "</div>"
     st.markdown(html_content, unsafe_allow_html=True)
+
+    # 檢查網址是否有觸發播放影片的要求
+    query_params = st.query_params
+    if "play_video" in query_params:
+        video_target = query_params["play_video"]
+        st.write("---")
+        st.subheader("📺 影片線上播放")
+        # 使用 Streamlit 原生播放器，支援 githack 連結，絕對不下載、不進 GitHub
+        st.video(video_target, autoplay=True)
 
 
