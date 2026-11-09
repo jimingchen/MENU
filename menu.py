@@ -96,7 +96,7 @@ if st.session_state.current_page == 'Main':
     if info_dict.get("hint2"):
         title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint2']}</div>"
 
-    # 檢查並加入 HINT2：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
+    # 檢查並加入 HINT3：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
     if info_dict.get("hint3"):
         title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint3']}</div>"
     title_html += "</div>"
