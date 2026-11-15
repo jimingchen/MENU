@@ -1,4 +1,5 @@
 import os
+import base64
 import streamlit as st
 import pandas as pd
 
@@ -31,31 +32,28 @@ def read_reference_title():
 
 # 1. 設定頁面
 st.set_page_config(page_title="選股功能主選單", layout="centered")
-# 初始化縮放比例 (預設為 100%)
 if 'zoom_level' not in st.session_state:
     st.session_state.zoom_level = 100
 
-# 建立 3 個按鈕（放大、縮小、還原）
 zoom_col1, zoom_col2, zoom_col3 = st.columns(3)
 with zoom_col1:
     if st.button("➕ 畫面放大", use_container_width=True):
-        st.session_state.zoom_level = min(st.session_state.zoom_level + 15, 200) # 最高放大到 200%
+        st.session_state.zoom_level = min(st.session_state.zoom_level + 15, 200)
         st.rerun()
 with zoom_col2:
     if st.button("➖ 畫面縮小", use_container_width=True):
-        st.session_state.zoom_level = max(st.session_state.zoom_level - 15, 70)  # 最低縮小到 70%
+        st.session_state.zoom_level = max(st.session_state.zoom_level - 15, 70)
         st.rerun()
 with zoom_col3:
     if st.button("🔄 恢復預設", use_container_width=True):
         st.session_state.zoom_level = 100
         st.rerun()
 
-# 動態注入 CSS，將整個網頁依據比例縮放
 st.markdown(f"""
     <style>
     .block-container, div[data-testid="stVerticalBlock"] {{
         zoom: {st.session_state.zoom_level}%;
-        -moz-transform: scale({st.session_state.zoom_level / 100}); /* 針對 Firefox 瀏覽器 */
+        -moz-transform: scale({st.session_state.zoom_level / 100});
         -moz-transform-origin: top center;
     }}
     </style>
@@ -71,18 +69,16 @@ if 'df' not in st.session_state:
         st.error(f"無法讀取 data.xlsx 檔案，請確認是否與 menu.py 置於同目錄下。錯誤原因: {e}")
         st.stop()
 
-# 修正後的強效防護網：在網頁重新整理的最早階段，搶先攔截網址列的影片參數並補齊所有變數
-if "play_video" in st.query_params:
-    # 1. 檢查如果發現 current_page 遺失了，或是回到了 Main
+# 攔截網址列的影片或 PDF 參數並補齊所有變數
+if "play_video" in st.query_params or "view_pdf" in st.query_params:
     if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
-        # 如果後台有存前一次的有效選單名稱，就用它；如果沒有，就預設留在影片所屬的子選單（例如 'OP'）
         if 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
             st.session_state.current_page = st.session_state.last_valid_group
         else:
-            st.session_state.current_page = 'OP'  # 🌟備註：這裡可以填入您最常使用的子選單名稱（如 'OP'）
-            st.session_state.last_valid_group = 'OP'
+            default_grp = 'X' if "view_pdf" in st.query_params else 'OP'
+            st.session_state.current_page = default_grp
+            st.session_state.last_valid_group = default_grp
 else:
-    # 正常狀況（網址沒有影片參數）：如果沒有 current_page，預設為 Main
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'Main'
 
@@ -90,36 +86,25 @@ else:
 
 # (A) & (B) 主選單畫面
 if st.session_state.current_page == 'Main':
-    # 讀取文字檔資訊（回傳字典）
     info_dict = read_reference_title()
     
-    # 建立一個統一的 HTML 容器，精準控制每行間距
     title_html = "<div style='text-align: center; font-family: sans-serif;'>"
-    
-    # 主標題：使用深灰色 (#333)，大小設為 24px (等同 h3)
     title_html += f"<div style='font-size: 24px; font-weight: bold; color: #333; margin-top: 10px; margin-bottom: 5px;'>{info_dict['title']}</div>"
     
-    # 檢查並加入 HINT1：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
     if info_dict.get("hint1"):
         title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint1']}</div>"
-        
-    # 檢查並加入 HINT2：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
     if info_dict.get("hint2"):
         title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint2']}</div>"
-
-    # 檢查並加入 HINT3：有抓到才塞入，設定淡紅色 (#FF6B6B)，大小 16px
     if info_dict.get("hint3"):
         title_html += f"<div style='font-size: 16px; font-weight: bold; color: #FF6B6B; margin-top: 4px; margin-bottom: 4px;'>{info_dict['hint3']}</div>"
     title_html += "</div>"
     
-    # 一次性將標題與提示文字渲染到網頁畫面上
     st.markdown(title_html, unsafe_allow_html=True)
     st.write("---")
 
     df = st.session_state.df
     menu_df = df[df["GROUP"].astype(str).str.strip() == "MENU"]
 
-    # 注入 CSS 樣式
     st.markdown("""
         <style>
         .block-container {
@@ -149,15 +134,13 @@ if st.session_state.current_page == 'Main':
 else:
     group_key = st.session_state.current_page
     df = st.session_state.df
-    
-    # 只要成功進入此分頁，就立刻把當前的群組名稱存起來，供最頂端重新整理時使用
     st.session_state.last_valid_group = group_key
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅️ 返回主選單"):
-            if 'active_video' in st.session_state:
-                st.session_state.active_video = None
+            st.session_state.active_video = None
+            st.session_state.active_pdf = None
             st.query_params.clear()
             st.session_state.current_page = 'Main'
             st.rerun()
@@ -167,17 +150,21 @@ else:
 
     st.write("---")
 
-    # 檢查網址列是否有觸發播放影片的要求
     query_params = st.query_params
     if "play_video" in query_params:
         st.session_state.active_video = query_params["play_video"]
-        # 再次確保頁面群組不遺失
+        st.session_state.active_pdf = None
+        if 'last_valid_group' in st.session_state:
+            st.session_state.current_page = st.session_state.last_valid_group
+            
+    if "view_pdf" in query_params:
+        st.session_state.active_pdf = query_params["view_pdf"]
+        st.session_state.active_video = None
         if 'last_valid_group' in st.session_state:
             st.session_state.current_page = st.session_state.last_valid_group
 
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
     
-    # 100% 恢復圖 A 最自然的純 HTML 文字排版（行高 1.5，字體完美一致，無多餘間距）
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
    
     is_first_line = True
@@ -199,34 +186,60 @@ else:
         if is_hyperlink:
             url_lower = desc.lower()
             if url_lower.endswith('.mp4'):
-                # target='_self' 保證不開新分頁、不觸發下載，外觀字體與 PDF 超連結 100% 完美一致
                 html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+            elif url_lower.endswith('.pdf') and not url_lower.startswith('http'):
+                html_content += f"<span style='{line_style}'><a href='?view_pdf={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a></span>"
             else:
-                # 正常的 PDF 連結維持原樣，開新分頁預覽不下載
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
-            # 一般綠色說明文字
             html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
             
     html_content += "</div>"
     st.markdown(html_content, unsafe_allow_html=True)
 
-    # 檢查後台狀態：如果有點擊影片，就在原地（下方）渲染播放器
+    # 影片播放器區塊
     if 'active_video' in st.session_state and st.session_state.active_video:
         st.write("---")
-        
-        # 排邊：左邊標題，右邊關閉按鈕
         v_col1, v_col2 = st.columns(2)
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
-            # 點擊關閉，清空狀態、清空網址參數並刷新頁面，讓影片徹底消失
             if st.button("❌ 關閉影片", use_container_width=True):
                 st.session_state.active_video = None
                 st.query_params.clear()
                 st.rerun()
-                
-        # 顯示原生播放器，不下載、不進 GitHub
         st.video(st.session_state.active_video, autoplay=True)
+
+    # 本地 PDF 檢視器區塊（使用字串拼接避免任何顯示截斷問題）
+    if 'active_pdf' in st.session_state and st.session_state.active_pdf:
+        pdf_filename = st.session_state.active_pdf
+        st.write("---")
+        p_col1, p_col2 = st.columns(2)
+        with p_col1:
+            st.subheader(f"📑 檢視：{pdf_filename}")
+        with p_col2:
+            if st.button("❌ 關閉 PDF", use_container_width=True):
+                st.session_state.active_pdf = None
+                st.query_params.clear()
+                st.rerun()
+                
+        if os.path.exists(pdf_filename):
+            with open(pdf_filename, "rb") as f:
+                pdf_bytes = f.read()
+            
+            st.download_button(
+                label="⬇️ 下載此 PDF 檔案",
+                data=pdf_bytes,
+                file_name=pdf_filename,
+                mime="application/pdf"
+            )
+            
+            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+            tag_open = "<" + "iframe"
+            tag_close = "</" + "iframe>"
+            pdf_display = f'{tag_open} src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800px" type="application/pdf">{tag_close}'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+        else:
+            st.error(f"找不到檔案：{pdf_filename}，請確認該 PDF 已上傳至 GitHub 並與 menu.py 放在同一層目錄。")
 
 
