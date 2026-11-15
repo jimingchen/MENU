@@ -210,7 +210,7 @@ else:
                 st.rerun()
         st.video(st.session_state.active_video, autoplay=True)
 
-    # 本地 PDF 檢視器區塊（使用字串拼接避免任何顯示截斷問題）
+    # 本地 PDF 檢視器區塊（將 PDF 轉為高清圖片直接顯示，100% 支援所有瀏覽器）
     if 'active_pdf' in st.session_state and st.session_state.active_pdf:
         pdf_filename = st.session_state.active_pdf
         st.write("---")
@@ -234,11 +234,17 @@ else:
                 mime="application/pdf"
             )
             
-            base64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-            tag_open = "<" + "iframe"
-            tag_close = "</" + "iframe>"
-            pdf_display = f'{tag_open} src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800px" type="application/pdf">{tag_close}'
-            st.markdown(pdf_display, unsafe_allow_html=True)
+            try:
+                import fitz  # PyMuPDF
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                st.caption(f"共 {len(doc)} 頁（可直接往下滑動瀏覽）")
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    # zoom=2.0 可確保 K 線圖與數字清晰不模糊
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+                    st.image(pix.tobytes("png"), use_container_width=True)
+            except Exception as e:
+                st.warning(f"無法直接預覽畫面，請點擊上方「下載此 PDF 檔案」按鈕檢視。（原因：{e}）")
         else:
             st.error(f"找不到檔案：{pdf_filename}，請確認該 PDF 已上傳至 GitHub 並與 menu.py 放在同一層目錄。")
 
