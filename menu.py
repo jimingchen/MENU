@@ -1,12 +1,13 @@
 import os
 import base64
 import subprocess
+import urllib.parse
 from datetime import datetime, timezone, timedelta
 import streamlit as st
 import pandas as pd
 
 # ==========================================
-# 0. 在此定義讀取 reference.txt 與 Git 時間的函式
+# 0. 定義讀取 reference.txt 與 Git 時間的函式
 # ==========================================
 def read_reference_title():
     """讀取 reference.txt 中的資訊，並以字典形式分開回傳"""
@@ -28,7 +29,7 @@ def read_reference_title():
                         res["hint2"] = line_str.replace("HINT2:", "").strip()
                     elif line_str.startswith("HINT3:"):
                         res["hint3"] = line_str.replace("HINT3:", "").strip()    
-        except Exception as e:
+        except Exception:
             pass
     return res
 
@@ -38,7 +39,6 @@ def get_github_commit_time(filepath):
     if not os.path.exists(filepath):
         return ""
     try:
-        # 使用 git log 抓取該檔案最後一次 commit 的 Unix 時間戳記
         cmd = ["git", "log", "-1", "--format=%ct", "--", filepath]
         timestamp_str = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode("utf-8").strip()
         if timestamp_str:
@@ -48,7 +48,6 @@ def get_github_commit_time(filepath):
     except Exception:
         pass
     
-    # 若非 Git 環境，則退回讀取本地檔案修改時間
     try:
         mtime = os.path.getmtime(filepath)
         tw_tz = timezone(timedelta(hours=8))
@@ -96,15 +95,36 @@ if 'df' not in st.session_state:
         st.error(f"無法讀取 data.xlsx 檔案，請確認是否與 menu.py 置於同目錄下。錯誤原因: {e}")
         st.stop()
 
-# 攔截網址列的影片或 PDF 參數並補齊所有變數
-if "play_video" in st.query_params or "view_pdf" in st.query_params:
+# 3. 統一攔截網址列的影片或 PDF 參數（支援中文檔名解碼與自動定位所屬群組）
+query_params = st.query_params
+if "play_video" in query_params:
+    video_name = urllib.parse.unquote(str(query_params["play_video"]))
+    st.session_state.active_video = video_name
+    st.session_state.active_pdf = None
     if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
         if 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
             st.session_state.current_page = st.session_state.last_valid_group
         else:
-            default_grp = 'X' if "view_pdf" in st.query_params else 'OP'
-            st.session_state.current_page = default_grp
-            st.session_state.last_valid_group = default_grp
+            st.session_state.current_page = 'OP'
+            st.session_state.last_valid_group = 'OP'
+
+elif "view_pdf" in query_params:
+    pdf_name = urllib.parse.unquote(str(query_params["view_pdf"]))
+    st.session_state.active_pdf = pdf_name
+    st.session_state.active_video = None
+    if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
+        # 自動從 Excel 尋找該 PDF 所屬的 GROUP，避免重整後跑錯頁面
+        df_tmp = st.session_state.df
+        matched = df_tmp[df_tmp["OPTION DESCRIPTION"].astype(str).str.strip() == pdf_name]
+        if not matched.empty:
+            found_grp = str(matched.iloc[0]["GROUP"]).strip()
+            st.session_state.current_page = found_grp
+            st.session_state.last_valid_group = found_grp
+        elif 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
+            st.session_state.current_page = st.session_state.last_valid_group
+        else:
+            st.session_state.current_page = 'X'
+            st.session_state.last_valid_group = 'X'
 else:
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'Main'
@@ -177,19 +197,6 @@ else:
 
     st.write("---")
 
-    query_params = st.query_params
-    if "play_video" in query_params:
-        st.session_state.active_video = query_params["play_video"]
-        st.session_state.active_pdf = None
-        if 'last_valid_group' in st.session_state:
-            st.session_state.current_page = st.session_state.last_valid_group
-            
-    if "view_pdf" in query_params:
-        st.session_state.active_pdf = query_params["view_pdf"]
-        st.session_state.active_video = None
-        if 'last_valid_group' in st.session_state:
-            st.session_state.current_page = st.session_state.last_valid_group
-
     sub_df = df[df["GROUP"].astype(str).str.strip() == group_key]
     
     html_content = "<div style='line-height: 1.5; font-family: sans-serif; font-size: 18px; word-break: break-all;'>"
@@ -212,13 +219,13 @@ else:
         
         if is_hyperlink:
             url_lower = desc.lower()
+            encoded_desc = urllib.parse.quote(desc)
             if url_lower.endswith('.mp4'):
-                html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                html_content += f"<span style='{line_style}'><a href='?play_video={encoded_desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             elif url_lower.endswith('.pdf') and not url_lower.startswith('http'):
-                # 取得該 PDF 存入 GitHub 的日期時間
                 commit_time = get_github_commit_time(desc)
-                time_badge = f"<span style='color: #d93025; font-size: 15px; margin-left: 14px; font-weight: normal;'>({commit_time})</span>" if commit_time else ""
-                html_content += f"<span style='{line_style}'><a href='?view_pdf={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a>{time_badge}</span>"
+                time_badge = f"<span style='color: #d93025; font-size: 15px; margin-left: 14px; font-weight: bold;'>({commit_time})</span>" if commit_time else ""
+                html_content += f"<span style='{line_style}'><a href='?view_pdf={encoded_desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a>{time_badge}</span>"
             else:
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
@@ -232,12 +239,5 @@ else:
         st.write("---")
         v_col1, v_col2 = st.columns(2)
         with v_col1:
-            st.subheader("📺 影片線上播放")
-        with v_col2:
-            if st.button("❌ 關閉影片", use_container_width=True):
-                st.session_state.active_video = None
-                st.query_params.clear()
-                st.rerun()
-        st.video(st.session_state.active_video, autoplay=True)
 
 
