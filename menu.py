@@ -1,10 +1,12 @@
 import os
 import base64
+import subprocess
+from datetime import datetime, timezone, timedelta
 import streamlit as st
 import pandas as pd
 
 # ==========================================
-# 0. 在此定義讀取 reference.txt 的函式
+# 0. 在此定義讀取 reference.txt 與 Git 時間的函式
 # ==========================================
 def read_reference_title():
     """讀取 reference.txt 中的資訊，並以字典形式分開回傳"""
@@ -29,6 +31,31 @@ def read_reference_title():
         except Exception as e:
             pass
     return res
+
+@st.cache_data(ttl=600)
+def get_github_commit_time(filepath):
+    """取得檔案最後一次推送至 GitHub (Git Commit) 的台灣時間"""
+    if not os.path.exists(filepath):
+        return ""
+    try:
+        # 使用 git log 抓取該檔案最後一次 commit 的 Unix 時間戳記
+        cmd = ["git", "log", "-1", "--format=%ct", "--", filepath]
+        timestamp_str = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode("utf-8").strip()
+        if timestamp_str:
+            tw_tz = timezone(timedelta(hours=8))
+            dt = datetime.fromtimestamp(int(timestamp_str), tz=tw_tz)
+            return dt.strftime("%Y/%m/%d %H:%M")
+    except Exception:
+        pass
+    
+    # 若非 Git 環境，則退回讀取本地檔案修改時間
+    try:
+        mtime = os.path.getmtime(filepath)
+        tw_tz = timezone(timedelta(hours=8))
+        dt = datetime.fromtimestamp(mtime, tz=tw_tz)
+        return dt.strftime("%Y/%m/%d %H:%M")
+    except Exception:
+        return ""
 
 # 1. 設定頁面
 st.set_page_config(page_title="選股功能主選單", layout="centered")
@@ -188,7 +215,10 @@ else:
             if url_lower.endswith('.mp4'):
                 html_content += f"<span style='{line_style}'><a href='?play_video={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             elif url_lower.endswith('.pdf') and not url_lower.startswith('http'):
-                html_content += f"<span style='{line_style}'><a href='?view_pdf={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a></span>"
+                # 取得該 PDF 存入 GitHub 的日期時間
+                commit_time = get_github_commit_time(desc)
+                time_badge = f"<span style='color: #666666; font-size: 15px; margin-left: 14px; font-weight: normal;'>({commit_time})</span>" if commit_time else ""
+                html_content += f"<span style='{line_style}'><a href='?view_pdf={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a>{time_badge}</span>"
             else:
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
         else:
@@ -209,43 +239,5 @@ else:
                 st.query_params.clear()
                 st.rerun()
         st.video(st.session_state.active_video, autoplay=True)
-
-    # 本地 PDF 檢視器區塊（將 PDF 轉為高清圖片直接顯示，100% 支援所有瀏覽器）
-    if 'active_pdf' in st.session_state and st.session_state.active_pdf:
-        pdf_filename = st.session_state.active_pdf
-        st.write("---")
-        p_col1, p_col2 = st.columns(2)
-        with p_col1:
-            st.subheader(f"📑 檢視：{pdf_filename}")
-        with p_col2:
-            if st.button("❌ 關閉 PDF", use_container_width=True):
-                st.session_state.active_pdf = None
-                st.query_params.clear()
-                st.rerun()
-                
-        if os.path.exists(pdf_filename):
-            with open(pdf_filename, "rb") as f:
-                pdf_bytes = f.read()
-            
-            st.download_button(
-                label="⬇️ 下載此 PDF 檔案",
-                data=pdf_bytes,
-                file_name=pdf_filename,
-                mime="application/pdf"
-            )
-            
-            try:
-                import fitz  # PyMuPDF
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                st.caption(f"共 {len(doc)} 頁（可直接往下滑動瀏覽）")
-                for page_num in range(len(doc)):
-                    page = doc.load_page(page_num)
-                    # zoom=2.0 可確保 K 線圖與數字清晰不模糊
-                    pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
-                    st.image(pix.tobytes("png"), use_container_width=True)
-            except Exception as e:
-                st.warning(f"無法直接預覽畫面，請點擊上方「下載此 PDF 檔案」按鈕檢視。（原因：{e}）")
-        else:
-            st.error(f"找不到檔案：{pdf_filename}，請確認該 PDF 已上傳至 GitHub 並與 menu.py 放在同一層目錄。")
 
 
