@@ -217,7 +217,7 @@ else:
             elif url_lower.endswith('.pdf') and not url_lower.startswith('http'):
                 # 取得該 PDF 存入 GitHub 的日期時間
                 commit_time = get_github_commit_time(desc)
-                time_badge = f"<span style='color: #666666; font-size: 15px; margin-left: 14px; font-weight: normal;'>({commit_time})</span>" if commit_time else ""
+                time_badge = f"<span style='color: #d93025; font-size: 15px; margin-left: 14px; font-weight: normal;'>({commit_time})</span>" if commit_time else ""
                 html_content += f"<span style='{line_style}'><a href='?view_pdf={desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a>{time_badge}</span>"
             else:
                 html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
