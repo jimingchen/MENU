@@ -240,5 +240,6 @@ else:
         with v_col1:
             st.subheader("📺 影片線上播放")
         with v_col2:
+            if st.button("❌ 關閉影片", use_container_width=True):
 
 
