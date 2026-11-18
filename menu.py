@@ -282,6 +282,6 @@ else:
             except Exception as e:
                 st.warning(f"無法直接預覽畫面，請點擊上方下載按鈕檢視。（原因：{e}）")
         else:
-            st.error(f"找不到檔案：{pdf_filename}，請確認該 PDF 已上傳至 GitHub 
+            st.error(f"找不到檔案：{pdf_filename}")
 
 
