@@ -234,12 +234,54 @@ else:
     st.markdown(html_content, unsafe_allow_html=True)
 
     # 影片播放器區塊
+    # 影片播放器區塊
     if 'active_video' in st.session_state and st.session_state.active_video:
         st.write("---")
         v_col1, v_col2 = st.columns(2)
         with v_col1:
-            st.subheader("📺 影片線上播放")
+            st.subheader("影片線上播放")
         with v_col2:
-            if st.button("❌ 關閉影片", use_container_width=True):
+            if st.button("關閉影片", use_container_width=True):
+                st.session_state.active_video = None
+                st.query_params.clear()
+                st.rerun()
+        st.video(st.session_state.active_video, autoplay=True)
+
+    # 本地 PDF 檢視器區塊
+    if 'active_pdf' in st.session_state and st.session_state.active_pdf:
+        pdf_filename = st.session_state.active_pdf
+        st.write("---")
+        p_col1, p_col2 = st.columns(2)
+        with p_col1:
+            st.subheader(f"檢視：{pdf_filename}")
+        with p_col2:
+            if st.button("關閉 PDF", use_container_width=True):
+                st.session_state.active_pdf = None
+                st.query_params.clear()
+                st.rerun()
+                
+        if os.path.exists(pdf_filename):
+            with open(pdf_filename, "rb") as f:
+                pdf_bytes = f.read()
+            
+            st.download_button(
+                label="下載此 PDF 檔案",
+                data=pdf_bytes,
+                file_name=pdf_filename,
+                mime="application/pdf"
+            )
+            
+            try:
+                import fitz
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                st.caption(f"共 {len(doc)} 頁（可直接往下滑動瀏覽）")
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+                    st.image(pix.tobytes("png"), use_container_width=True)
+            except Exception as e:
+                st.warning(f"無法直接預覽畫面，請點擊上方下載按鈕檢視。（原因：{e}）")
+        else:
+            st.error(f"找不到檔案：{pdf_filename}，請確認該 PDF 已上傳至 GitHub 
 
 
