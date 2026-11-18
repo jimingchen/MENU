@@ -116,7 +116,7 @@ elif "view_pdf" in query_params:
         df_tmp = st.session_state.df
         matched = df_tmp[df_tmp["OPTION DESCRIPTION"].astype(str).str.strip() == pdf_name]
         if not matched.empty:
-            found_grp = str(matched.iloc["GROUP"]).strip()
+            found_grp = str(matched.iloc[0]["GROUP"]).strip()
             st.session_state.current_page = found_grp
             st.session_state.last_valid_group = found_grp
         elif 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
