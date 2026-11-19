@@ -234,19 +234,6 @@ else:
     st.markdown(html_content, unsafe_allow_html=True)
 
     # 影片播放器區塊
-    # 影片播放器區塊
-    if 'active_video' in st.session_state and st.session_state.active_video:
-        st.write("---")
-        v_col1, v_col2 = st.columns(2)
-        with v_col1:
-            st.subheader("影片線上播放")
-        with v_col2:
-            if st.button("關閉影片", use_container_width=True):
-                st.session_state.active_video = None
-                st.query_params.clear()
-                st.rerun()
-        st.video(st.session_state.active_video, autoplay=True)
-
     # 本地 PDF 檢視器區塊
     if 'active_pdf' in st.session_state and st.session_state.active_pdf:
         pdf_filename = st.session_state.active_pdf
@@ -264,21 +251,52 @@ else:
             with open(pdf_filename, "rb") as f:
                 pdf_bytes = f.read()
             
-            st.download_button(
-                label="下載此 PDF 檔案",
-                data=pdf_bytes,
-                file_name=pdf_filename,
-                mime="application/pdf"
-            )
-            
+            # 初始化 PDF 專屬縮放比例（預設 100%）
+            if 'pdf_zoom' not in st.session_state:
+                st.session_state.pdf_zoom = 100
+
+            # 下載與縮放控制列
+            ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([2, 1, 1, 1])
+            with ctrl_col1:
+                st.download_button(
+                    label="📥 下載此 PDF 檔案",
+                    data=pdf_bytes,
+                    file_name=pdf_filename,
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            with ctrl_col2:
+                if st.button("🔍 放大 PDF", use_container_width=True):
+                    st.session_state.pdf_zoom = min(st.session_state.pdf_zoom + 25, 300)
+                    st.rerun()
+            with ctrl_col3:
+                if st.button("🔎 縮小 PDF", use_container_width=True):
+                    st.session_state.pdf_zoom = max(st.session_state.pdf_zoom - 25, 50)
+                    st.rerun()
+            with ctrl_col4:
+                if st.button("100% 原始", use_container_width=True):
+                    st.session_state.pdf_zoom = 100
+                    st.rerun()
+
             try:
                 import fitz
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                st.caption(f"共 {len(doc)} 頁（可直接往下滑動瀏覽）")
+                st.caption(f"共 {len(doc)} 頁｜目前縮放比例：**{st.session_state.pdf_zoom}%**（放大後可左右滑動檢視表格）")
+                
+                # 根據縮放比例動態調整圖片寬度（基準寬度設為 700px），並允許左右捲動
+                target_width = int(700 * (st.session_state.pdf_zoom / 100))
+                
+                # 提高渲染解析度 (Matrix 3.0)，確保放大至 200%~300% 時文字依然清晰不模糊
+                html_images = "<div style='overflow-x: auto; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;'>"
                 for page_num in range(len(doc)):
                     page = doc.load_page(page_num)
-                    pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
-                    st.image(pix.tobytes("png"), use_container_width=True)
+                    pix = page.get_pixmap(matrix=fitz.Matrix(3.0, 3.0))
+                    img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
+                    html_images += f"<img src='data:image/png;base64,{img_b64}' style='width: {target_width}px; max-width: none; display: block; margin-bottom: 12px;' />"
+                html_images += "</div>"
+                
+                st.markdown(html_images, unsafe_allow_html=True)
+
             except Exception as e:
                 st.warning(f"無法直接預覽畫面，請點擊上方下載按鈕檢視。（原因：{e}）")
         else:
