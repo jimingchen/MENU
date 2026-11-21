@@ -95,12 +95,13 @@ if 'df' not in st.session_state:
         st.error(f"無法讀取 data.xlsx 檔案，請確認是否與 menu.py 置於同目錄下。錯誤原因: {e}")
         st.stop()
 
-# 3. 統一攔截網址列的影片或 PDF 參數（支援中文檔名解碼與自動定位所屬群組）
+# 3. 統一攔截網址列的影片、PDF 或 TXT 參數（支援中文檔名解碼與自動定位所屬群組）
 query_params = st.query_params
 if "play_video" in query_params:
     video_name = urllib.parse.unquote(str(query_params["play_video"]))
     st.session_state.active_video = video_name
     st.session_state.active_pdf = None
+    st.session_state.active_txt = None
     if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
         if 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
             st.session_state.current_page = st.session_state.last_valid_group
@@ -112,9 +113,28 @@ elif "view_pdf" in query_params:
     pdf_name = urllib.parse.unquote(str(query_params["view_pdf"]))
     st.session_state.active_pdf = pdf_name
     st.session_state.active_video = None
+    st.session_state.active_txt = None
     if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
         df_tmp = st.session_state.df
         matched = df_tmp[df_tmp["OPTION DESCRIPTION"].astype(str).str.strip() == pdf_name]
+        if not matched.empty:
+            found_grp = str(matched.iloc[0]["GROUP"]).strip()
+            st.session_state.current_page = found_grp
+            st.session_state.last_valid_group = found_grp
+        elif 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
+            st.session_state.current_page = st.session_state.last_valid_group
+        else:
+            st.session_state.current_page = 'X'
+            st.session_state.last_valid_group = 'X'
+
+elif "view_txt" in query_params:
+    txt_name = urllib.parse.unquote(str(query_params["view_txt"]))
+    st.session_state.active_txt = txt_name
+    st.session_state.active_pdf = None
+    st.session_state.active_video = None
+    if 'current_page' not in st.session_state or st.session_state.current_page == 'Main':
+        df_tmp = st.session_state.df
+        matched = df_tmp[df_tmp["OPTION DESCRIPTION"].astype(str).str.strip() == txt_name]
         if not matched.empty:
             found_grp = str(matched.iloc[0]["GROUP"]).strip()
             st.session_state.current_page = found_grp
@@ -187,6 +207,7 @@ else:
         if st.button("⬅️ 返回主選單"):
             st.session_state.active_video = None
             st.session_state.active_pdf = None
+            st.session_state.active_txt = None
             st.query_params.clear()
             st.session_state.current_page = 'Main'
             st.rerun()
@@ -220,86 +241,130 @@ else:
             url_lower = desc.lower()
             encoded_desc = urllib.parse.quote(desc)
             if url_lower.endswith('.mp4'):
-                html_content += f"<span style='{line_style}'><a href='?play_video={encoded_desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
+                html_content += f"<span style='{line_style}'><a href ='?play_video={encoded_desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
             elif url_lower.endswith('.pdf') and not url_lower.startswith('http'):
-                commit_time = get_github_commit_time(desc)
-                time_badge = f"<span style='color: #d93025; font-size: 15px; margin-left: 14px; font-weight: bold;'>({commit_time})</span>" if commit_time else ""
-                html_content += f"<span style='{line_style}'><a href='?view_pdf={encoded_desc}' target='_self' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>📄 {desc}</a>{time_badge}</span>"
-            else:
-                html_content += f"<span style='{line_style}'><a href='{desc}' target='_blank' style='color: #1a73e8; text-decoration: underline; font-weight: bold;'>{desc}</a></span>"
-        else:
-            html_content += f"<span style='{line_style}; color: #008000;'>{desc}</span>"
-            
-    html_content += "</div>"
-    st.markdown(html_content, unsafe_allow_html=True)
+commit_time = get_github_commit_time(desc)
+time_badge = f"({commit_time})" if commit_time else ""
+html_content += f"📄 {desc}{time_badge}"
+elif url_lower.endswith('.txt') and not url_lower.startswith('http'):
+commit_time = get_github_commit_time(desc)
+time_badge = f"({commit_time})" if commit_time else ""
+html_content += f"📝 {desc}{time_badge}"
+else:
+html_content += f"{desc}"
+else:
+html_content += f"{desc}"
+html_content += ""
+st.markdown(html_content, unsafe_allow_html=True)
+# 本地 PDF 檢視器區塊
+if 'active_pdf' in st.session_state and st.session_state.active_pdf:
+pdf_filename = st.session_state.active_pdf
+st.write("---")
+p_col1, p_col2 = st.columns(2)
+with p_col1:
+st.subheader(f"檢視：{pdf_filename}")
+with p_col2:
+if st.button("關閉 PDF", use_container_width=True):
+st.session_state.active_pdf = None
+st.query_params.clear()
+st.rerun()
+if os.path.exists(pdf_filename):
+with open(pdf_filename, "rb") as f:
+pdf_bytes = f.read()
+if 'pdf_zoom' not in st.session_state:
+st.session_state.pdf_zoom = 100
+ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([2, 1, 1, 1])
+with ctrl_col1:
+st.download_button(
+label="📥 下載此 PDF 檔案",
+data=pdf_bytes,
+file_name=pdf_filename,
+mime="application/pdf",
+use_container_width=True
+)
+with ctrl_col2:
+if st.button("🔍 放大 PDF", use_container_width=True):
+st.session_state.pdf_zoom = min(st.session_state.pdf_zoom + 25, 300)
+st.rerun()
+with ctrl_col3:
+if st.button("🔎 縮小 PDF", use_container_width=True):
+st.session_state.pdf_zoom = max(st.session_state.pdf_zoom - 25, 50)
+st.rerun()
+with ctrl_col4:
+if st.button("100% 原始", use_container_width=True):
+st.session_state.pdf_zoom = 100
+st.rerun()
+try:
+import fitz
+doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+st.caption(f"共 {len(doc)} 頁｜目前縮放比例：{st.session_state.pdf_zoom}%（放大後可左右滑動檢視表格）")
+target_width = int(700 * (st.session_state.pdf_zoom / 100))
+html_images = ""
+for page_num in range(len(doc)):
+page = doc.load_page(page_num)
+pix = page.get_pixmap(matrix=fitz.Matrix(3.0, 3.0))
+img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
+html_images += f""
+html_images += ""
+st.markdown(html_images, unsafe_allow_html=True)
+except Exception as e:
+st.warning(f"無法直接預覽畫面，請點擊上方下載按鈕檢視。（原因：{e}）")
+else:
+st.error(f"找不到檔案：{pdf_filename}")
+# 本地 TXT 檢視器區塊
+if 'active_txt' in st.session_state and st.session_state.active_txt:
+txt_filename = st.session_state.active_txt
+st.write("---")
+t_col1, t_col2 = st.columns(2)
+with t_col1:
+st.subheader(f"檢視：{txt_filename}")
+with t_col2:
+if st.button("關閉 TXT", use_container_width=True):
+st.session_state.active_txt = None
+st.query_params.clear()
+st.rerun()
+if os.path.exists(txt_filename):
+with open(txt_filename, "rb") as f:
+txt_bytes = f.read()
+# 自動嘗試 UTF-8 或 Big5 解碼，避免中文亂碼
+try:
+txt_content = txt_bytes.decode("utf-8")
+except UnicodeDecodeError:
+try:
+txt_content = txt_bytes.decode("cp950")
+except Exception:
+txt_content = txt_bytes.decode("utf-8", errors="replace")
+if 'txt_font_size' not in st.session_state:
+st.session_state.txt_font_size = 16
+tctrl_col1, tctrl_col2, tctrl_col3, tctrl_col4 = st.columns([2, 1, 1, 1])
+with tctrl_col1:
+st.download_button(
+label="📥 下載此 TXT 檔案",
+data=txt_bytes,
+file_name=txt_filename,
+mime="text/plain",
+use_container_width=True
+)
+with tctrl_col2:
+if st.button("🔍 字體放大", use_container_width=True):
+st.session_state.txt_font_size = min(st.session_state.txt_font_size + 2, 32)
+st.rerun()
+with tctrl_col3:
+if st.button("🔎 字體縮小", use_container_width=True):
+st.session_state.txt_font_size = max(st.session_state.txt_font_size - 2, 12)
+st.rerun()
+with tctrl_col4:
+if st.button("預設字體", use_container_width=True):
+st.session_state.txt_font_size = 16
+st.rerun()
+# 使用 HTML pre 標籤保留原始排版與空格，並支援橫向捲動（適合看選股報表/對齊欄位）
+import html
+escaped_txt = html.escape(txt_content)
+st.markdown(f"""
 
-    # 影片播放器區塊
-    # 本地 PDF 檢視器區塊
-    if 'active_pdf' in st.session_state and st.session_state.active_pdf:
-        pdf_filename = st.session_state.active_pdf
-        st.write("---")
-        p_col1, p_col2 = st.columns(2)
-        with p_col1:
-            st.subheader(f"檢視：{pdf_filename}")
-        with p_col2:
-            if st.button("關閉 PDF", use_container_width=True):
-                st.session_state.active_pdf = None
-                st.query_params.clear()
-                st.rerun()
-                
-        if os.path.exists(pdf_filename):
-            with open(pdf_filename, "rb") as f:
-                pdf_bytes = f.read()
-            
-            # 初始化 PDF 專屬縮放比例（預設 100%）
-            if 'pdf_zoom' not in st.session_state:
-                st.session_state.pdf_zoom = 100
+{escaped_txt}
 
-            # 下載與縮放控制列
-            ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([2, 1, 1, 1])
-            with ctrl_col1:
-                st.download_button(
-                    label="📥 下載此 PDF 檔案",
-                    data=pdf_bytes,
-                    file_name=pdf_filename,
-                    mime="application/pdf",
-                    use_container_width=True
-                )
-            with ctrl_col2:
-                if st.button("🔍 放大 PDF", use_container_width=True):
-                    st.session_state.pdf_zoom = min(st.session_state.pdf_zoom + 25, 300)
-                    st.rerun()
-            with ctrl_col3:
-                if st.button("🔎 縮小 PDF", use_container_width=True):
-                    st.session_state.pdf_zoom = max(st.session_state.pdf_zoom - 25, 50)
-                    st.rerun()
-            with ctrl_col4:
-                if st.button("100% 原始", use_container_width=True):
-                    st.session_state.pdf_zoom = 100
-                    st.rerun()
-
-            try:
-                import fitz
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                st.caption(f"共 {len(doc)} 頁｜目前縮放比例：**{st.session_state.pdf_zoom}%**（放大後可左右滑動檢視表格）")
-                
-                # 根據縮放比例動態調整圖片寬度（基準寬度設為 700px），並允許左右捲動
-                target_width = int(700 * (st.session_state.pdf_zoom / 100))
-                
-                # 提高渲染解析度 (Matrix 3.0)，確保放大至 200%~300% 時文字依然清晰不模糊
-                html_images = "<div style='overflow-x: auto; border: 1px solid #ddd; padding: 10px; background-color: #f9f9f9;'>"
-                for page_num in range(len(doc)):
-                    page = doc.load_page(page_num)
-                    pix = page.get_pixmap(matrix=fitz.Matrix(3.0, 3.0))
-                    img_b64 = base64.b64encode(pix.tobytes("png")).decode("utf-8")
-                    html_images += f"<img src='data:image/png;base64,{img_b64}' style='width: {target_width}px; max-width: none; display: block; margin-bottom: 12px;' />"
-                html_images += "</div>"
-                
-                st.markdown(html_images, unsafe_allow_html=True)
-
-            except Exception as e:
-                st.warning(f"無法直接預覽畫面，請點擊上方下載按鈕檢視。（原因：{e}）")
-        else:
-            st.error(f"找不到檔案：{pdf_filename}")
-
+""", unsafe_allow_html=True)
+else:
+st.error(f"找不到檔案：{txt_filename}")
 
