@@ -327,28 +327,24 @@ else:
                 txt_bytes = f.read()
             
             try:
-                txt_content = txt_bytes.decode("utf-8")
+                txt_content = txt_bytes.decode("utf-8-sig")
             except UnicodeDecodeError:
                 try:
                     txt_content = txt_bytes.decode("cp950")
                 except Exception:
                     txt_content = txt_bytes.decode("utf-8", errors="replace")
 
-            if 'txt_font_size' not in st.session_state:
-                st.session_state.txt_font_size = 16
+            st.download_button(
+                label="📥 下載此 TXT 檔案",
+                data=txt_bytes,
+                file_name=txt_filename,
+                mime="text/plain"
+            )
 
-            tctrl_col1, tctrl_col2, tctrl_col3, tctrl_col4 = st.columns([2, 1, 1, 1])
-            with tctrl_col1:
-                st.download_button(label="📥 下載此 TXT 檔案", data=txt_bytes, file_name=txt_filename, mime="text/plain", use_container_width=True)
-            with tctrl_col2:
-                if st.button("🔍 字體放大", use_container_width=True):
-                    st.session_state.txt_font_size = min(st.session_state.txt_font_size + 2, 32)
-                    st.rerun()
-            with tctrl_col3:
-                if st.button("🔎 字體縮小", use_container_width=True):
-                    st.session_state.txt_font_size = max(st.session_state.txt_font_size - 2, 12)
-                    st.rerun()
-            with tctrl_col4:
-                if st.button("預設字體", use_container_width=True):
-                    st.session_state.txt_font_size = 16
+            if txt_content.strip() == "":
+                st.info("（此檔案目前為空白內容）")
+            else:
+                st.code(txt_content, language="text", wrap_lines=True)
+        else:
+            st.error(f"找不到檔案：{txt_filename}")
 
