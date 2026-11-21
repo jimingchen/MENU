@@ -119,7 +119,7 @@ elif "view_pdf" in query_params:
         df_tmp = st.session_state.df
         matched = df_tmp[df_tmp["OPTION DESCRIPTION"].astype(str).str.strip() == pdf_name]
         if not matched.empty:
-            found_grp = str(matched.iloc["GROUP"]).strip()
+            found_grp = str(matched.iloc[0]["GROUP"]).strip()
             st.session_state.current_page = found_grp
             st.session_state.last_valid_group = found_grp
         elif 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
@@ -137,7 +137,7 @@ elif "view_txt" in query_params:
         df_tmp = st.session_state.df
         matched = df_tmp[df_tmp["OPTION DESCRIPTION"].astype(str).str.strip() == txt_name]
         if not matched.empty:
-            found_grp = str(matched.iloc["GROUP"]).strip()
+            found_grp = str(matched.iloc[0]["GROUP"]).strip()
             st.session_state.current_page = found_grp
             st.session_state.last_valid_group = found_grp
         elif 'last_valid_group' in st.session_state and st.session_state.last_valid_group:
@@ -275,7 +275,7 @@ else:
             if 'pdf_zoom' not in st.session_state:
                 st.session_state.pdf_zoom = 100
 
-            ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns()
+            ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([2, 1, 1, 1])
             with ctrl_col1:
                 st.download_button(label="📥 下載此 PDF 檔案", data=pdf_bytes, file_name=pdf_filename, mime="application/pdf", use_container_width=True)
             with ctrl_col2:
@@ -337,7 +337,7 @@ else:
             if 'txt_font_size' not in st.session_state:
                 st.session_state.txt_font_size = 16
 
-            tctrl_col1, tctrl_col2, tctrl_col3, tctrl_col4 = st.columns()
+            tctrl_col1, tctrl_col2, tctrl_col3, tctrl_col4 = st.columns([2, 1, 1, 1])
             with tctrl_col1:
                 st.download_button(label="📥 下載此 TXT 檔案", data=txt_bytes, file_name=txt_filename, mime="text/plain", use_container_width=True)
             with tctrl_col2:
@@ -351,5 +351,4 @@ else:
             with tctrl_col4:
                 if st.button("預設字體", use_container_width=True):
                     st.session_state.txt_font_size = 16
-                    st.rerun()
 
